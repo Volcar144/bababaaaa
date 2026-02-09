@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D 5e Lookup Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="parchment-background">
+        <div class="container">
+            <header class="header">
+                <h1 class="title">
+                    <span class="dragon-icon">🐉</span>
+                    D&D 5e Lookup Tool
+                    <span class="dragon-icon">🐉</span>
+                </h1>
+                <p class="subtitle">Explore the realms of Dungeons & Dragons 5th Edition</p>
+            </header>
+
+            <div class="search-section">
+                <div class="category-selector">
+                    <button class="category-btn active" data-category="spells">
+                        <span class="icon">✨</span>
+                        Spells
+                    </button>
+                    <button class="category-btn" data-category="monsters">
+                        <span class="icon">👹</span>
+                        Monsters
+                    </button>
+                    <button class="category-btn" data-category="classes">
+                        <span class="icon">⚔️</span>
+                        Classes
+                    </button>
+                    <button class="category-btn" data-category="equipment">
+                        <span class="icon">🛡️</span>
+                        Equipment
+                    </button>
+                    <button class="category-btn" data-category="magic-items">
+                        <span class="icon">💎</span>
+                        Magic Items
+                    </button>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search for spells, monsters, classes...">
+                    <button id="searchBtn" class="search-btn">🔍 Search</button>
+                </div>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Consulting the ancient tomes...</p>
+            </div>
+
+            <div id="error" class="error hidden"></div>
+
+            <div id="results" class="results-grid"></div>
+
+            <div id="detailModal" class="modal hidden">
+                <div class="modal-content">
+                    <span class="close-btn">&times;</span>
+                    <div id="modalBody" class="modal-body"></div>
+                </div>
+            </div>
+
+            <footer class="footer">
+                <p>Powered by <a href="https://www.dnd5eapi.co/" target="_blank">D&D 5e API</a></p>
+                <p>All content is property of Wizards of the Coast</p>
+            </footer>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
