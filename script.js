@@ -1,6 +1,10 @@
 // API Configuration
 const API_BASE_URL = 'https://www.dnd5eapi.co/api';
 
+// In-memory API cache for performance
+const apiCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // State management
 let currentCategory = 'spells';
 let allResults = [];
@@ -11,6 +15,10 @@ let isOffline = !navigator.onLine;
 let deferredPrompt = null;
 let recentItems = [];
 let pinnedItems = [];
+let diceHistory = [];
+let spellSlots = {};
+let initiativeList = [];
+let currentTurn = 0;
 
 // Load favorites safely
 try {
@@ -34,6 +42,30 @@ try {
 } catch (error) {
     console.error('Failed to load pinned items:', error);
     pinnedItems = [];
+}
+
+// Load dice history
+try {
+    diceHistory = JSON.parse(localStorage.getItem('dnd-dice-history')) || [];
+} catch (error) {
+    console.error('Failed to load dice history:', error);
+    diceHistory = [];
+}
+
+// Load spell slots
+try {
+    spellSlots = JSON.parse(localStorage.getItem('dnd-spell-slots')) || {};
+} catch (error) {
+    console.error('Failed to load spell slots:', error);
+    spellSlots = {};
+}
+
+// Load initiative list
+try {
+    initiativeList = JSON.parse(localStorage.getItem('dnd-initiative')) || [];
+} catch (error) {
+    console.error('Failed to load initiative list:', error);
+    initiativeList = [];
 }
 
 // Register Service Worker for offline support
@@ -74,6 +106,17 @@ const favoritesBody = document.getElementById('favoritesBody');
 const closeFavorites = document.getElementById('closeFavorites');
 const offlineIndicator = document.getElementById('offlineIndicator');
 const installBtn = document.getElementById('installBtn');
+
+// New tool elements
+const diceRollerBtn = document.getElementById('diceRollerBtn');
+const diceRollerModal = document.getElementById('diceRollerModal');
+const closeDiceRoller = document.getElementById('closeDiceRoller');
+const spellSlotsBtn = document.getElementById('spellSlotsBtn');
+const spellSlotsModal = document.getElementById('spellSlotsModal');
+const closeSpellSlots = document.getElementById('closeSpellSlots');
+const initiativeBtn = document.getElementById('initiativeBtn');
+const initiativeModal = document.getElementById('initiativeModal');
+const closeInitiative = document.getElementById('closeInitiative');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -201,8 +244,17 @@ favoritesModal.addEventListener('click', (e) => {
     }
 });
 
-// API Functions
+// API Functions - Enhanced with in-memory caching
 async function fetchFromAPI(endpoint) {
+    // Check in-memory cache first
+    const cacheKey = endpoint;
+    const cached = apiCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
+        console.log('Using cached data for', endpoint);
+        return cached.data;
+    }
+    
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
         if (!response.ok) {
@@ -212,9 +264,23 @@ async function fetchFromAPI(endpoint) {
             }
             throw new Error('Network response was not ok');
         }
-        return await response.json();
+        
+        const data = await response.json();
+        
+        // Store in memory cache
+        apiCache.set(cacheKey, {
+            data: data,
+            timestamp: Date.now()
+        });
+        
+        return data;
     } catch (error) {
         console.error('API Error:', error);
+        // If we have expired cache, use it as fallback
+        if (cached) {
+            console.log('Using expired cache as fallback');
+            return cached.data;
+        }
         // If offline and error, try to use cached data via service worker
         if (isOffline) {
             throw new Error('Offline mode - unable to fetch data. Try loading categories you\'ve visited before.');
@@ -1252,3 +1318,450 @@ function loadItemFromQuickAccess(category, index) {
 }
 
 window.loadItemFromQuickAccess = loadItemFromQuickAccess;
+
+// ==================== DICE ROLLER ====================
+
+function openDiceRoller() {
+    diceRollerModal.classList.remove('hidden');
+    renderDiceHistory();
+}
+
+function closeDiceRollerModal() {
+    diceRollerModal.classList.add('hidden');
+}
+
+diceRollerBtn.addEventListener('click', openDiceRoller);
+closeDiceRoller.addEventListener('click', closeDiceRollerModal);
+
+diceRollerModal.addEventListener('click', (e) => {
+    if (e.target === diceRollerModal) {
+        closeDiceRollerModal();
+    }
+});
+
+// Handle dice button clicks
+document.querySelectorAll('.dice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const diceType = btn.dataset.dice;
+        rollDice(diceType);
+    });
+});
+
+// Handle advantage/disadvantage checkboxes
+document.getElementById('advantageCheck').addEventListener('change', (e) => {
+    if (e.target.checked) {
+        document.getElementById('disadvantageCheck').checked = false;
+    }
+});
+
+document.getElementById('disadvantageCheck').addEventListener('change', (e) => {
+    if (e.target.checked) {
+        document.getElementById('advantageCheck').checked = false;
+    }
+});
+
+function rollDice(diceType) {
+    const count = parseInt(document.getElementById('diceCount').value) || 1;
+    const modifier = parseInt(document.getElementById('diceModifier').value) || 0;
+    const advantage = document.getElementById('advantageCheck').checked;
+    const disadvantage = document.getElementById('disadvantageCheck').checked;
+    
+    const sides = parseInt(diceType.substring(1));
+    const rolls = [];
+    
+    for (let i = 0; i < count; i++) {
+        if (advantage || disadvantage) {
+            const roll1 = Math.floor(Math.random() * sides) + 1;
+            const roll2 = Math.floor(Math.random() * sides) + 1;
+            if (advantage) {
+                rolls.push({ roll: Math.max(roll1, roll2), detail: `[${roll1}, ${roll2}] adv` });
+            } else {
+                rolls.push({ roll: Math.min(roll1, roll2), detail: `[${roll1}, ${roll2}] dis` });
+            }
+        } else {
+            rolls.push({ roll: Math.floor(Math.random() * sides) + 1, detail: '' });
+        }
+    }
+    
+    const sum = rolls.reduce((acc, r) => acc + r.roll, 0);
+    const total = sum + modifier;
+    
+    // Display result
+    const resultsDiv = document.getElementById('diceResults');
+    const rollDetails = rolls.map(r => r.detail ? `${r.roll} ${r.detail}` : r.roll).join(' + ');
+    const modifierStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+    
+    resultsDiv.innerHTML = `
+        <div class="dice-result-main">
+            <div class="dice-result-total">${total}</div>
+            <div class="dice-result-detail">
+                ${count}${diceType}: [${rollDetails}] ${modifier !== 0 ? modifierStr : ''}
+            </div>
+        </div>
+    `;
+    
+    // Add to history
+    const historyEntry = {
+        dice: `${count}${diceType}`,
+        modifier: modifier,
+        total: total,
+        rolls: rolls.map(r => r.roll),
+        timestamp: new Date().toLocaleTimeString()
+    };
+    
+    diceHistory.unshift(historyEntry);
+    if (diceHistory.length > 10) {
+        diceHistory = diceHistory.slice(0, 10);
+    }
+    
+    localStorage.setItem('dnd-dice-history', JSON.stringify(diceHistory));
+    renderDiceHistory();
+}
+
+function renderDiceHistory() {
+    const historyDiv = document.getElementById('diceHistory');
+    
+    if (diceHistory.length === 0) {
+        historyDiv.innerHTML = '<p style="color: #666; font-style: italic;">No rolls yet. Click a dice button to start!</p>';
+        return;
+    }
+    
+    historyDiv.innerHTML = `
+        <h3>Recent Rolls</h3>
+        <div class="history-items">
+            ${diceHistory.map(entry => `
+                <div class="history-item">
+                    <span class="history-time">${entry.timestamp}</span>
+                    <span class="history-roll">${entry.dice}</span>
+                    <span class="history-rolls">[${entry.rolls.join(', ')}]</span>
+                    ${entry.modifier !== 0 ? `<span class="history-mod">${entry.modifier >= 0 ? '+' : ''}${entry.modifier}</span>` : ''}
+                    <span class="history-total">= ${entry.total}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// ==================== SPELL SLOTS TRACKER ====================
+
+const SPELL_SLOTS_BY_LEVEL = {
+    1: [2, 0, 0, 0, 0, 0, 0, 0, 0],
+    2: [3, 0, 0, 0, 0, 0, 0, 0, 0],
+    3: [4, 2, 0, 0, 0, 0, 0, 0, 0],
+    4: [4, 3, 0, 0, 0, 0, 0, 0, 0],
+    5: [4, 3, 2, 0, 0, 0, 0, 0, 0],
+    6: [4, 3, 3, 0, 0, 0, 0, 0, 0],
+    7: [4, 3, 3, 1, 0, 0, 0, 0, 0],
+    8: [4, 3, 3, 2, 0, 0, 0, 0, 0],
+    9: [4, 3, 3, 3, 1, 0, 0, 0, 0],
+    10: [4, 3, 3, 3, 2, 0, 0, 0, 0],
+    11: [4, 3, 3, 3, 2, 1, 0, 0, 0],
+    12: [4, 3, 3, 3, 2, 1, 0, 0, 0],
+    13: [4, 3, 3, 3, 2, 1, 1, 0, 0],
+    14: [4, 3, 3, 3, 2, 1, 1, 0, 0],
+    15: [4, 3, 3, 3, 2, 1, 1, 1, 0],
+    16: [4, 3, 3, 3, 2, 1, 1, 1, 0],
+    17: [4, 3, 3, 3, 2, 1, 1, 1, 1],
+    18: [4, 3, 3, 3, 3, 1, 1, 1, 1],
+    19: [4, 3, 3, 3, 3, 2, 1, 1, 1],
+    20: [4, 3, 3, 3, 3, 2, 2, 1, 1]
+};
+
+function openSpellSlots() {
+    spellSlotsModal.classList.remove('hidden');
+    renderSpellSlots();
+}
+
+function closeSpellSlotsModal() {
+    spellSlotsModal.classList.add('hidden');
+}
+
+spellSlotsBtn.addEventListener('click', openSpellSlots);
+closeSpellSlots.addEventListener('click', closeSpellSlotsModal);
+
+spellSlotsModal.addEventListener('click', (e) => {
+    if (e.target === spellSlotsModal) {
+        closeSpellSlotsModal();
+    }
+});
+
+document.getElementById('characterLevel').addEventListener('change', () => {
+    renderSpellSlots();
+});
+
+document.getElementById('resetSpellSlots').addEventListener('click', () => {
+    const level = parseInt(document.getElementById('characterLevel').value);
+    spellSlots = {};
+    for (let i = 1; i <= 9; i++) {
+        spellSlots[i] = { used: 0, max: SPELL_SLOTS_BY_LEVEL[level][i - 1] };
+    }
+    localStorage.setItem('dnd-spell-slots', JSON.stringify(spellSlots));
+    renderSpellSlots();
+    showNotification('All spell slots restored!', 'info');
+});
+
+function renderSpellSlots() {
+    const level = parseInt(document.getElementById('characterLevel').value);
+    const maxSlots = SPELL_SLOTS_BY_LEVEL[level];
+    const grid = document.getElementById('spellSlotsGrid');
+    
+    // Initialize spell slots if not set
+    if (!spellSlots[level]) {
+        for (let i = 1; i <= 9; i++) {
+            if (!spellSlots[i]) {
+                spellSlots[i] = { used: 0, max: maxSlots[i - 1] };
+            } else {
+                spellSlots[i].max = maxSlots[i - 1];
+            }
+        }
+    }
+    
+    grid.innerHTML = '';
+    
+    for (let spellLevel = 1; spellLevel <= 9; spellLevel++) {
+        const max = maxSlots[spellLevel - 1];
+        if (max === 0) continue;
+        
+        const used = spellSlots[spellLevel]?.used || 0;
+        const available = max - used;
+        
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'spell-slot-level';
+        slotDiv.innerHTML = `
+            <div class="spell-slot-header">
+                <h3>Level ${spellLevel}</h3>
+                <span class="spell-slot-count">${available}/${max}</span>
+            </div>
+            <div class="spell-slot-dots">
+                ${Array(max).fill(0).map((_, i) => 
+                    `<button class="spell-slot-dot ${i < used ? 'used' : 'available'}" 
+                             onclick="toggleSpellSlot(${spellLevel}, ${i})"
+                             aria-label="Spell slot ${i + 1} ${i < used ? 'used' : 'available'}">
+                    </button>`
+                ).join('')}
+            </div>
+        `;
+        
+        grid.appendChild(slotDiv);
+    }
+}
+
+function toggleSpellSlot(level, index) {
+    if (!spellSlots[level]) {
+        spellSlots[level] = { used: 0, max: SPELL_SLOTS_BY_LEVEL[parseInt(document.getElementById('characterLevel').value)][level - 1] };
+    }
+    
+    const currentUsed = spellSlots[level].used;
+    
+    // If clicking on a used slot, mark it and all after as available
+    if (index < currentUsed) {
+        spellSlots[level].used = index;
+    } else {
+        // If clicking on available slot, mark it and all before as used
+        spellSlots[level].used = index + 1;
+    }
+    
+    localStorage.setItem('dnd-spell-slots', JSON.stringify(spellSlots));
+    renderSpellSlots();
+}
+
+window.toggleSpellSlot = toggleSpellSlot;
+
+// ==================== INITIATIVE TRACKER ====================
+
+function openInitiative() {
+    initiativeModal.classList.remove('hidden');
+    renderInitiative();
+}
+
+function closeInitiativeModal() {
+    initiativeModal.classList.add('hidden');
+}
+
+initiativeBtn.addEventListener('click', openInitiative);
+closeInitiative.addEventListener('click', closeInitiativeModal);
+
+initiativeModal.addEventListener('click', (e) => {
+    if (e.target === initiativeModal) {
+        closeInitiativeModal();
+    }
+});
+
+document.getElementById('addInitiative').addEventListener('click', () => {
+    const name = document.getElementById('initCreatureName').value.trim();
+    const initiative = parseInt(document.getElementById('initRoll').value);
+    const hp = parseInt(document.getElementById('initHP').value) || null;
+    
+    if (!name || isNaN(initiative)) {
+        showNotification('Please enter a name and initiative value', 'warning');
+        return;
+    }
+    
+    initiativeList.push({
+        id: Date.now(),
+        name: name,
+        initiative: initiative,
+        hp: hp,
+        maxHp: hp,
+        active: false
+    });
+    
+    // Sort by initiative (highest first)
+    initiativeList.sort((a, b) => b.initiative - a.initiative);
+    
+    localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+    
+    // Clear inputs
+    document.getElementById('initCreatureName').value = '';
+    document.getElementById('initRoll').value = '';
+    document.getElementById('initHP').value = '';
+    
+    renderInitiative();
+    showNotification(`${name} added to initiative`, 'info');
+});
+
+document.getElementById('clearInitiative').addEventListener('click', () => {
+    if (confirm('Clear all creatures from initiative?')) {
+        initiativeList = [];
+        currentTurn = 0;
+        localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+        renderInitiative();
+        showNotification('Initiative tracker cleared', 'info');
+    }
+});
+
+document.getElementById('nextTurn').addEventListener('click', () => {
+    if (initiativeList.length === 0) return;
+    
+    // Mark current as inactive
+    if (initiativeList[currentTurn]) {
+        initiativeList[currentTurn].active = false;
+    }
+    
+    // Move to next
+    currentTurn = (currentTurn + 1) % initiativeList.length;
+    
+    // Mark new as active
+    initiativeList[currentTurn].active = true;
+    
+    localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+    renderInitiative();
+    
+    const currentCreature = initiativeList[currentTurn];
+    showNotification(`${currentCreature.name}'s turn (Initiative ${currentCreature.initiative})`, 'info');
+});
+
+function renderInitiative() {
+    const listDiv = document.getElementById('initiativeList');
+    
+    if (initiativeList.length === 0) {
+        listDiv.innerHTML = '<p style="color: #666; font-style: italic;">No creatures in combat. Add combatants above.</p>';
+        return;
+    }
+    
+    listDiv.innerHTML = initiativeList.map((creature, index) => `
+        <div class="initiative-item ${creature.active ? 'active' : ''}">
+            <div class="init-order">${index + 1}</div>
+            <div class="init-info">
+                <div class="init-name">${creature.name}</div>
+                <div class="init-value">Initiative: ${creature.initiative}</div>
+                ${creature.hp !== null ? `
+                    <div class="init-hp">
+                        <input type="number" 
+                               value="${creature.hp}" 
+                               min="0" 
+                               max="${creature.maxHp}"
+                               onchange="updateCreatureHP(${creature.id}, this.value)"
+                               aria-label="Hit points for ${creature.name}">
+                        / ${creature.maxHp} HP
+                    </div>
+                ` : ''}
+            </div>
+            <button class="init-remove" onclick="removeFromInitiative(${creature.id})" aria-label="Remove ${creature.name}">✕</button>
+        </div>
+    `).join('');
+}
+
+function removeFromInitiative(id) {
+    const index = initiativeList.findIndex(c => c.id === id);
+    if (index !== -1) {
+        const creature = initiativeList[index];
+        initiativeList.splice(index, 1);
+        
+        // Adjust current turn if needed
+        if (index < currentTurn) {
+            currentTurn--;
+        } else if (index === currentTurn && currentTurn >= initiativeList.length) {
+            currentTurn = 0;
+        }
+        
+        localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+        renderInitiative();
+        showNotification(`${creature.name} removed from initiative`, 'info');
+    }
+}
+
+function updateCreatureHP(id, newHp) {
+    const creature = initiativeList.find(c => c.id === id);
+    if (creature) {
+        creature.hp = parseInt(newHp);
+        localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+        
+        if (creature.hp <= 0) {
+            showNotification(`${creature.name} has fallen!`, 'warning');
+        }
+    }
+}
+
+window.removeFromInitiative = removeFromInitiative;
+window.updateCreatureHP = updateCreatureHP;
+
+// ==================== KEYBOARD NAVIGATION & ACCESSIBILITY ====================
+
+// Keyboard navigation improvements
+document.addEventListener('keydown', (e) => {
+    // Escape key to close modals
+    if (e.key === 'Escape') {
+        if (!modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+        }
+        if (!compareModal.classList.contains('hidden')) {
+            compareModal.classList.add('hidden');
+        }
+        if (!favoritesModal.classList.contains('hidden')) {
+            favoritesModal.classList.add('hidden');
+        }
+        if (!diceRollerModal.classList.contains('hidden')) {
+            diceRollerModal.classList.add('hidden');
+        }
+        if (!spellSlotsModal.classList.contains('hidden')) {
+            spellSlotsModal.classList.add('hidden');
+        }
+        if (!initiativeModal.classList.contains('hidden')) {
+            initiativeModal.classList.add('hidden');
+        }
+    }
+    
+    // Ctrl/Cmd + K to focus search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+    }
+    
+    // Ctrl/Cmd + D for dice roller
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        openDiceRoller();
+    }
+});
+
+// Update category button accessibility
+categoryBtns.forEach(btn => {
+    const originalListener = btn.onclick;
+    btn.addEventListener('click', () => {
+        categoryBtns.forEach(b => {
+            b.setAttribute('aria-selected', 'false');
+        });
+        btn.setAttribute('aria-selected', 'true');
+    });
+});

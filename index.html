@@ -33,6 +33,15 @@
                     <button id="installBtn" class="control-btn hidden" title="Install App">
                         📥 Install
                     </button>
+                    <button id="diceRollerBtn" class="control-btn" title="Dice Roller">
+                        🎲 Dice
+                    </button>
+                    <button id="spellSlotsBtn" class="control-btn" title="Spell Slots Tracker">
+                        ✨ Slots
+                    </button>
+                    <button id="initiativeBtn" class="control-btn" title="Initiative Tracker">
+                        ⚔️ Initiative
+                    </button>
                     <span id="offlineIndicator" class="offline-indicator hidden" title="Offline Mode">
                         📡 Offline
                     </span>
@@ -50,54 +59,54 @@
             </div>
 
             <div class="search-section">
-                <div class="category-selector">
-                    <button class="category-btn active" data-category="spells">
-                        <span class="icon">✨</span>
+                <div class="category-selector" role="tablist" aria-label="Content categories">
+                    <button class="category-btn active" data-category="spells" role="tab" aria-selected="true" aria-controls="results">
+                        <span class="icon" aria-hidden="true">✨</span>
                         Spells
                     </button>
-                    <button class="category-btn" data-category="monsters">
-                        <span class="icon">👹</span>
+                    <button class="category-btn" data-category="monsters" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">👹</span>
                         Monsters
                     </button>
-                    <button class="category-btn" data-category="classes">
-                        <span class="icon">⚔️</span>
+                    <button class="category-btn" data-category="classes" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">⚔️</span>
                         Classes
                     </button>
-                    <button class="category-btn" data-category="races">
-                        <span class="icon">👤</span>
+                    <button class="category-btn" data-category="races" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">👤</span>
                         Races
                     </button>
-                    <button class="category-btn" data-category="equipment">
-                        <span class="icon">🛡️</span>
+                    <button class="category-btn" data-category="equipment" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">🛡️</span>
                         Equipment
                     </button>
-                    <button class="category-btn" data-category="magic-items">
-                        <span class="icon">💎</span>
+                    <button class="category-btn" data-category="magic-items" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">💎</span>
                         Magic Items
                     </button>
                 </div>
 
                 <div class="search-bar">
-                    <input type="text" id="searchInput" class="search-input" placeholder="Search for spells, monsters, classes...">
-                    <button id="searchBtn" class="search-btn">🔍 Search</button>
-                    <button id="randomBtn" class="search-btn random-btn" title="Get Random Item">🎲 Random</button>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search for spells, monsters, classes..." aria-label="Search content">
+                    <button id="searchBtn" class="search-btn" aria-label="Search">🔍 Search</button>
+                    <button id="randomBtn" class="search-btn random-btn" title="Get Random Item" aria-label="Get random item">🎲 Random</button>
                 </div>
 
                 <div id="filterSection" class="filter-section hidden"></div>
             </div>
 
-            <div id="loading" class="loading hidden">
+            <div id="loading" class="loading hidden" role="status" aria-live="polite">
                 <div class="spinner"></div>
                 <p>Consulting the ancient tomes...</p>
             </div>
 
-            <div id="error" class="error hidden"></div>
+            <div id="error" class="error hidden" role="alert" aria-live="assertive"></div>
 
-            <div id="results" class="results-grid"></div>
+            <div id="results" class="results-grid" role="region" aria-label="Search results"></div>
 
-            <div id="detailModal" class="modal hidden">
+            <div id="detailModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
                 <div class="modal-content">
-                    <span class="close-btn">&times;</span>
+                    <span class="close-btn" aria-label="Close modal">&times;</span>
                     <div id="modalBody" class="modal-body"></div>
                 </div>
             </div>
@@ -133,6 +142,94 @@
                 <p>Powered by <a href="https://www.dnd5eapi.co/" target="_blank">D&D 5e API</a></p>
                 <p>All content is property of Wizards of the Coast</p>
             </footer>
+        </div>
+    </div>
+
+    <!-- Dice Roller Modal -->
+    <div id="diceRollerModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" id="closeDiceRoller">&times;</span>
+            <h2>🎲 Dice Roller</h2>
+            <div class="dice-roller-body">
+                <div class="dice-buttons">
+                    <button class="dice-btn" data-dice="d4">d4</button>
+                    <button class="dice-btn" data-dice="d6">d6</button>
+                    <button class="dice-btn" data-dice="d8">d8</button>
+                    <button class="dice-btn" data-dice="d10">d10</button>
+                    <button class="dice-btn" data-dice="d12">d12</button>
+                    <button class="dice-btn" data-dice="d20">d20</button>
+                    <button class="dice-btn" data-dice="d100">d100</button>
+                </div>
+                <div class="dice-options">
+                    <label>Number of dice: <input type="number" id="diceCount" value="1" min="1" max="20"></label>
+                    <label>Modifier: <input type="number" id="diceModifier" value="0" step="1"></label>
+                    <label>
+                        <input type="checkbox" id="advantageCheck"> Advantage
+                    </label>
+                    <label>
+                        <input type="checkbox" id="disadvantageCheck"> Disadvantage
+                    </label>
+                </div>
+                <div id="diceResults" class="dice-results"></div>
+                <div id="diceHistory" class="dice-history"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spell Slots Tracker Modal -->
+    <div id="spellSlotsModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" id="closeSpellSlots">&times;</span>
+            <h2>✨ Spell Slots Tracker</h2>
+            <div class="spell-slots-body">
+                <div class="spell-slots-controls">
+                    <label>Character Level: 
+                        <select id="characterLevel">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                            <option value="13">13</option>
+                            <option value="14">14</option>
+                            <option value="15">15</option>
+                            <option value="16">16</option>
+                            <option value="17">17</option>
+                            <option value="18">18</option>
+                            <option value="19">19</option>
+                            <option value="20">20</option>
+                        </select>
+                    </label>
+                    <button id="resetSpellSlots" class="control-btn">Long Rest (Reset All)</button>
+                </div>
+                <div id="spellSlotsGrid" class="spell-slots-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initiative Tracker Modal -->
+    <div id="initiativeModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" id="closeInitiative">&times;</span>
+            <h2>⚔️ Initiative Tracker</h2>
+            <div class="initiative-body">
+                <div class="initiative-controls">
+                    <input type="text" id="initCreatureName" placeholder="Creature name" aria-label="Creature name">
+                    <input type="number" id="initRoll" placeholder="Initiative" min="-10" max="50" aria-label="Initiative value">
+                    <input type="number" id="initHP" placeholder="HP (optional)" min="1" aria-label="Hit points">
+                    <button id="addInitiative" class="control-btn">Add to Combat</button>
+                    <button id="clearInitiative" class="control-btn">Clear All</button>
+                    <button id="nextTurn" class="control-btn">Next Turn</button>
+                </div>
+                <div id="initiativeList" class="initiative-list"></div>
+            </div>
         </div>
     </div>
 

@@ -901,3 +901,496 @@ body {
     animation: shimmer 3s infinite;
 }
 
+/* ==================== DICE ROLLER STYLES ==================== */
+
+.dice-roller-body {
+    padding: 20px 0;
+}
+
+.dice-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.dice-btn {
+    background: linear-gradient(135deg, var(--accent) 0%, #6d3913 100%);
+    color: var(--text);
+    border: 2px solid var(--border);
+    padding: 15px 20px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 70px;
+}
+
+.dice-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.dice-btn:active {
+    transform: translateY(0);
+}
+
+.dice-options {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 20px 0;
+    padding: 15px;
+    background: var(--dark-parchment);
+    border-radius: 10px;
+}
+
+.dice-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+}
+
+.dice-options input[type="number"] {
+    width: 80px;
+    padding: 5px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    background: var(--parchment);
+    color: var(--text);
+}
+
+.dice-options input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.dice-results {
+    margin: 30px 0;
+    min-height: 100px;
+}
+
+.dice-result-main {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--accent) 0%, #6d3913 100%);
+    border-radius: 15px;
+    border: 3px solid var(--border);
+}
+
+.dice-result-total {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--text);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.dice-result-detail {
+    font-size: 1.1rem;
+    color: var(--text);
+    opacity: 0.9;
+    margin-top: 10px;
+}
+
+.dice-history {
+    margin-top: 30px;
+    padding: 15px;
+    background: var(--dark-parchment);
+    border-radius: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.dice-history h3 {
+    color: var(--accent);
+    margin-bottom: 15px;
+}
+
+.history-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.history-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    background: var(--parchment);
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    font-size: 0.9rem;
+}
+
+.history-time {
+    color: #666;
+    min-width: 80px;
+}
+
+.history-roll {
+    font-weight: bold;
+    color: var(--accent);
+    min-width: 50px;
+}
+
+.history-rolls {
+    color: var(--text);
+}
+
+.history-mod {
+    color: var(--accent);
+    font-weight: bold;
+}
+
+.history-total {
+    margin-left: auto;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--accent);
+}
+
+/* ==================== SPELL SLOTS TRACKER STYLES ==================== */
+
+.spell-slots-body {
+    padding: 20px 0;
+}
+
+.spell-slots-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--dark-parchment);
+    border-radius: 10px;
+}
+
+.spell-slots-controls label {
+    color: var(--text);
+    font-weight: bold;
+}
+
+.spell-slots-controls select {
+    padding: 8px 15px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    background: var(--parchment);
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.spell-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.spell-slot-level {
+    background: var(--dark-parchment);
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+}
+
+.spell-slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.spell-slot-header h3 {
+    color: var(--accent);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.spell-slot-count {
+    color: var(--text);
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.spell-slot-dots {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.spell-slot-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.spell-slot-dot.available {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.spell-slot-dot.used {
+    background: #333;
+    opacity: 0.4;
+}
+
+.spell-slot-dot:hover {
+    transform: scale(1.1);
+}
+
+/* ==================== INITIATIVE TRACKER STYLES ==================== */
+
+.initiative-body {
+    padding: 20px 0;
+}
+
+.initiative-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--dark-parchment);
+    border-radius: 10px;
+}
+
+.initiative-controls input {
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    background: var(--parchment);
+    color: var(--text);
+    flex: 1;
+    min-width: 150px;
+}
+
+.initiative-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.initiative-item {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    padding: 15px;
+    background: var(--dark-parchment);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.3s;
+}
+
+.initiative-item.active {
+    background: linear-gradient(135deg, var(--accent) 0%, #6d3913 100%);
+    border-color: gold;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+    animation: pulse 2s infinite;
+}
+
+.init-order {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--accent);
+    min-width: 40px;
+    text-align: center;
+}
+
+.initiative-item.active .init-order {
+    color: gold;
+}
+
+.init-info {
+    flex: 1;
+}
+
+.init-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text);
+    margin-bottom: 5px;
+}
+
+.init-value {
+    color: var(--text);
+    opacity: 0.8;
+    font-size: 0.9rem;
+}
+
+.init-hp {
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text);
+}
+
+.init-hp input {
+    width: 60px;
+    padding: 5px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    background: var(--parchment);
+    color: var(--text);
+    text-align: center;
+}
+
+.init-remove {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+
+.init-remove:hover {
+    background: #b71c1c;
+    transform: scale(1.1);
+}
+
+/* ==================== MOBILE RESPONSIVENESS IMPROVEMENTS ==================== */
+
+@media (max-width: 768px) {
+    .header-controls {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .control-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .dice-buttons {
+        gap: 8px;
+    }
+    
+    .dice-btn {
+        min-width: 60px;
+        padding: 12px 15px;
+        font-size: 1rem;
+    }
+    
+    .dice-options {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .spell-slots-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .initiative-controls {
+        flex-direction: column;
+    }
+    
+    .initiative-controls input {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .modal-content {
+        width: 95%;
+        max-width: none;
+        margin: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .category-selector {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .search-bar {
+        flex-direction: column;
+    }
+    
+    .search-input,
+    .search-btn {
+        width: 100%;
+    }
+    
+    .init-order {
+        font-size: 1.2rem;
+        min-width: 30px;
+    }
+    
+    .init-name {
+        font-size: 1rem;
+    }
+    
+    .history-item {
+        flex-wrap: wrap;
+        font-size: 0.8rem;
+    }
+    
+    .history-time {
+        min-width: 70px;
+        font-size: 0.75rem;
+    }
+}
+
+/* ==================== ACCESSIBILITY ENHANCEMENTS ==================== */
+
+/* Focus styles for better keyboard navigation */
+button:focus,
+input:focus,
+select:focus {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Skip to content link for screen readers */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--accent);
+    color: var(--text);
+    padding: 8px;
+    text-decoration: none;
+    z-index: 100;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .result-card,
+    .modal-content,
+    button {
+        border-width: 3px;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
