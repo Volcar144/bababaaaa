@@ -1,6 +1,16 @@
 // API Configuration
 const API_BASE_URL = 'https://www.dnd5eapi.co/api';
 
+// In-memory API cache for performance
+const apiCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for memory cache
+const DB_CACHE_DURATION = 60 * 60 * 1000; // 1 hour for IndexedDB cache
+
+// IndexedDB for better caching
+let db;
+const DB_NAME = 'dnd-lookup-db';
+const DB_VERSION = 1;
+
 // State management
 let currentCategory = 'spells';
 let allResults = [];
@@ -11,6 +21,24 @@ let isOffline = !navigator.onLine;
 let deferredPrompt = null;
 let recentItems = [];
 let pinnedItems = [];
+let diceHistory = [];
+let spellSlots = {};
+let initiativeList = [];
+let currentTurn = 0;
+let currentTheme = 'default';
+let soundEnabled = false;
+
+// Party Mode state
+let peer = null;
+let connections = [];
+let isHost = false;
+let roomId = null;
+
+// QoL features state
+let bookmarks = [];
+let searchHistory = [];
+let diceBox = null;
+let enable3DDice = false;
 
 // Load favorites safely
 try {
@@ -35,6 +63,100 @@ try {
     console.error('Failed to load pinned items:', error);
     pinnedItems = [];
 }
+
+// Load dice history
+try {
+    diceHistory = JSON.parse(localStorage.getItem('dnd-dice-history')) || [];
+} catch (error) {
+    console.error('Failed to load dice history:', error);
+    diceHistory = [];
+}
+
+// Load spell slots
+try {
+    spellSlots = JSON.parse(localStorage.getItem('dnd-spell-slots')) || {};
+} catch (error) {
+    console.error('Failed to load spell slots:', error);
+    spellSlots = {};
+}
+
+// Load initiative list
+try {
+    initiativeList = JSON.parse(localStorage.getItem('dnd-initiative')) || [];
+} catch (error) {
+    console.error('Failed to load initiative list:', error);
+    initiativeList = [];
+}
+
+// Load theme preference
+try {
+    currentTheme = localStorage.getItem('dnd-theme') || 'default';
+} catch (error) {
+    console.error('Failed to load theme:', error);
+    currentTheme = 'default';
+}
+
+// Load sound preference
+try {
+    soundEnabled = localStorage.getItem('dnd-sound') === 'true';
+} catch (error) {
+    console.error('Failed to load sound preference:', error);
+    soundEnabled = false;
+}
+
+// Load bookmarks
+try {
+    bookmarks = JSON.parse(localStorage.getItem('dnd-bookmarks')) || [];
+} catch (error) {
+    console.error('Failed to load bookmarks:', error);
+    bookmarks = [];
+}
+
+// Load search history
+try {
+    searchHistory = JSON.parse(localStorage.getItem('dnd-search-history')) || [];
+} catch (error) {
+    console.error('Failed to load search history:', error);
+    searchHistory = [];
+}
+
+// Load 3D dice preference
+try {
+    enable3DDice = localStorage.getItem('dnd-3d-dice') === 'true';
+} catch (error) {
+    console.error('Failed to load 3D dice preference:', error);
+    enable3DDice = false;
+}
+
+// Initialize IndexedDB for better caching
+function initIndexedDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            db = request.result;
+            resolve(db);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Create object stores if they don't exist
+            if (!db.objectStoreNames.contains('apiCache')) {
+                const store = db.createObjectStore('apiCache', { keyPath: 'endpoint' });
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+            
+            if (!db.objectStoreNames.contains('searchHistory')) {
+                db.createObjectStore('searchHistory', { keyPath: 'id', autoIncrement: true });
+            }
+        };
+    });
+}
+
+// Initialize DB on load
+initIndexedDB().catch(console.error);
 
 // Register Service Worker for offline support
 if ('serviceWorker' in navigator) {
@@ -74,6 +196,42 @@ const favoritesBody = document.getElementById('favoritesBody');
 const closeFavorites = document.getElementById('closeFavorites');
 const offlineIndicator = document.getElementById('offlineIndicator');
 const installBtn = document.getElementById('installBtn');
+
+// New tool elements
+const diceRollerBtn = document.getElementById('diceRollerBtn');
+const diceRollerModal = document.getElementById('diceRollerModal');
+const closeDiceRoller = document.getElementById('closeDiceRoller');
+const spellSlotsBtn = document.getElementById('spellSlotsBtn');
+const spellSlotsModal = document.getElementById('spellSlotsModal');
+const closeSpellSlots = document.getElementById('closeSpellSlots');
+const initiativeBtn = document.getElementById('initiativeBtn');
+const initiativeModal = document.getElementById('initiativeModal');
+const closeInitiative = document.getElementById('closeInitiative');
+
+// Party Mode elements
+const partyModeBtn = document.getElementById('partyModeBtn');
+const partyModeModal = document.getElementById('partyModeModal');
+const closePartyMode = document.getElementById('closePartyMode');
+const hostPartyBtn = document.getElementById('hostParty');
+const joinPartyBtn = document.getElementById('joinParty');
+const disconnectHostBtn = document.getElementById('disconnectHost');
+
+// Quick Reference elements
+const floatingQuickRef = document.getElementById('floatingQuickRef');
+const quickRefModal = document.getElementById('quickRefModal');
+const closeQuickRef = document.getElementById('closeQuickRef');
+
+// Theme selector
+const themeSelector = document.getElementById('themeSelector');
+
+// QoL elements
+const bookmarksBtn = document.getElementById('bookmarksBtn');
+const bookmarksModal = document.getElementById('bookmarksModal');
+const closeBookmarks = document.getElementById('closeBookmarks');
+const bookmarkCount = document.getElementById('bookmarkCount');
+const searchHistoryBtn = document.getElementById('searchHistoryBtn');
+const searchHistoryPanel = document.getElementById('searchHistoryPanel');
+const enable3DDiceCheckbox = document.getElementById('enable3DDice');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -201,8 +359,17 @@ favoritesModal.addEventListener('click', (e) => {
     }
 });
 
-// API Functions
+// API Functions - Enhanced with in-memory caching
 async function fetchFromAPI(endpoint) {
+    // Check in-memory cache first
+    const cacheKey = endpoint;
+    const cached = apiCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
+        console.log('Using cached data for', endpoint);
+        return cached.data;
+    }
+    
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
         if (!response.ok) {
@@ -212,9 +379,23 @@ async function fetchFromAPI(endpoint) {
             }
             throw new Error('Network response was not ok');
         }
-        return await response.json();
+        
+        const data = await response.json();
+        
+        // Store in memory cache
+        apiCache.set(cacheKey, {
+            data: data,
+            timestamp: Date.now()
+        });
+        
+        return data;
     } catch (error) {
         console.error('API Error:', error);
+        // If we have expired cache, use it as fallback
+        if (cached) {
+            console.log('Using expired cache as fallback');
+            return cached.data;
+        }
         // If offline and error, try to use cached data via service worker
         if (isOffline) {
             throw new Error('Offline mode - unable to fetch data. Try loading categories you\'ve visited before.');
@@ -1252,3 +1433,1434 @@ function loadItemFromQuickAccess(category, index) {
 }
 
 window.loadItemFromQuickAccess = loadItemFromQuickAccess;
+
+// ==================== DICE ROLLER ====================
+
+function openDiceRoller() {
+    diceRollerModal.classList.remove('hidden');
+    renderDiceHistory();
+}
+
+function closeDiceRollerModal() {
+    diceRollerModal.classList.add('hidden');
+}
+
+diceRollerBtn.addEventListener('click', openDiceRoller);
+closeDiceRoller.addEventListener('click', closeDiceRollerModal);
+
+diceRollerModal.addEventListener('click', (e) => {
+    if (e.target === diceRollerModal) {
+        closeDiceRollerModal();
+    }
+});
+
+// Handle dice button clicks
+document.querySelectorAll('.dice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const diceType = btn.dataset.dice;
+        rollDice(diceType);
+    });
+});
+
+// Handle advantage/disadvantage checkboxes
+document.getElementById('advantageCheck').addEventListener('change', (e) => {
+    if (e.target.checked) {
+        document.getElementById('disadvantageCheck').checked = false;
+    }
+});
+
+document.getElementById('disadvantageCheck').addEventListener('change', (e) => {
+    if (e.target.checked) {
+        document.getElementById('advantageCheck').checked = false;
+    }
+});
+
+function renderDiceHistory() {
+    const historyDiv = document.getElementById('diceHistory');
+    
+    if (diceHistory.length === 0) {
+        historyDiv.innerHTML = '<p class="empty-state">No rolls yet. Click a dice button to start!</p>';
+        return;
+    }
+    
+    historyDiv.innerHTML = `
+        <h3>Recent Rolls</h3>
+        <div class="history-items">
+            ${diceHistory.map(entry => `
+                <div class="history-item">
+                    <span class="history-time">${entry.timestamp}</span>
+                    <span class="history-roll">${entry.dice}</span>
+                    <span class="history-rolls">[${entry.rolls.join(', ')}]</span>
+                    ${entry.modifier !== 0 ? `<span class="history-mod">${entry.modifier >= 0 ? '+' : ''}${entry.modifier}</span>` : ''}
+                    <span class="history-total">= ${entry.total}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// ==================== SPELL SLOTS TRACKER ====================
+
+const SPELL_SLOTS_BY_LEVEL = {
+    1: [2, 0, 0, 0, 0, 0, 0, 0, 0],
+    2: [3, 0, 0, 0, 0, 0, 0, 0, 0],
+    3: [4, 2, 0, 0, 0, 0, 0, 0, 0],
+    4: [4, 3, 0, 0, 0, 0, 0, 0, 0],
+    5: [4, 3, 2, 0, 0, 0, 0, 0, 0],
+    6: [4, 3, 3, 0, 0, 0, 0, 0, 0],
+    7: [4, 3, 3, 1, 0, 0, 0, 0, 0],
+    8: [4, 3, 3, 2, 0, 0, 0, 0, 0],
+    9: [4, 3, 3, 3, 1, 0, 0, 0, 0],
+    10: [4, 3, 3, 3, 2, 0, 0, 0, 0],
+    11: [4, 3, 3, 3, 2, 1, 0, 0, 0],
+    12: [4, 3, 3, 3, 2, 1, 0, 0, 0],
+    13: [4, 3, 3, 3, 2, 1, 1, 0, 0],
+    14: [4, 3, 3, 3, 2, 1, 1, 0, 0],
+    15: [4, 3, 3, 3, 2, 1, 1, 1, 0],
+    16: [4, 3, 3, 3, 2, 1, 1, 1, 0],
+    17: [4, 3, 3, 3, 2, 1, 1, 1, 1],
+    18: [4, 3, 3, 3, 3, 1, 1, 1, 1],
+    19: [4, 3, 3, 3, 3, 2, 1, 1, 1],
+    20: [4, 3, 3, 3, 3, 2, 2, 1, 1]
+};
+
+function openSpellSlots() {
+    spellSlotsModal.classList.remove('hidden');
+    renderSpellSlots();
+}
+
+function closeSpellSlotsModal() {
+    spellSlotsModal.classList.add('hidden');
+}
+
+spellSlotsBtn.addEventListener('click', openSpellSlots);
+closeSpellSlots.addEventListener('click', closeSpellSlotsModal);
+
+spellSlotsModal.addEventListener('click', (e) => {
+    if (e.target === spellSlotsModal) {
+        closeSpellSlotsModal();
+    }
+});
+
+document.getElementById('characterLevel').addEventListener('change', () => {
+    renderSpellSlots();
+});
+
+document.getElementById('resetSpellSlots').addEventListener('click', () => {
+    const level = parseInt(document.getElementById('characterLevel').value);
+    spellSlots = {};
+    for (let i = 1; i <= 9; i++) {
+        spellSlots[i] = { used: 0, max: SPELL_SLOTS_BY_LEVEL[level][i - 1] };
+    }
+    localStorage.setItem('dnd-spell-slots', JSON.stringify(spellSlots));
+    renderSpellSlots();
+    showNotification('All spell slots restored!', 'info');
+});
+
+function renderSpellSlots() {
+    const level = parseInt(document.getElementById('characterLevel').value);
+    const maxSlots = SPELL_SLOTS_BY_LEVEL[level];
+    const grid = document.getElementById('spellSlotsGrid');
+    
+    // Initialize spell slots if not set for this spell level
+    for (let i = 1; i <= 9; i++) {
+        if (!spellSlots[i]) {
+            spellSlots[i] = { used: 0, max: maxSlots[i - 1] };
+        } else {
+            spellSlots[i].max = maxSlots[i - 1];
+        }
+    }
+    
+    grid.innerHTML = '';
+    
+    for (let spellLevel = 1; spellLevel <= 9; spellLevel++) {
+        const max = maxSlots[spellLevel - 1];
+        if (max === 0) continue;
+        
+        const used = spellSlots[spellLevel]?.used || 0;
+        const available = max - used;
+        
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'spell-slot-level';
+        slotDiv.innerHTML = `
+            <div class="spell-slot-header">
+                <h3>Level ${spellLevel}</h3>
+                <span class="spell-slot-count">${available}/${max}</span>
+            </div>
+            <div class="spell-slot-dots">
+                ${Array(max).fill(0).map((_, i) => 
+                    `<button class="spell-slot-dot ${i < used ? 'used' : 'available'}" 
+                             onclick="toggleSpellSlot(${spellLevel}, ${i})"
+                             aria-label="Spell slot ${i + 1} ${i < used ? 'used' : 'available'}">
+                    </button>`
+                ).join('')}
+            </div>
+        `;
+        
+        grid.appendChild(slotDiv);
+    }
+}
+
+function toggleSpellSlot(level, index) {
+    if (!spellSlots[level]) {
+        spellSlots[level] = { used: 0, max: SPELL_SLOTS_BY_LEVEL[parseInt(document.getElementById('characterLevel').value)][level - 1] };
+    }
+    
+    const currentUsed = spellSlots[level].used;
+    
+    // If clicking on a used slot, mark it and all after as available
+    if (index < currentUsed) {
+        spellSlots[level].used = index;
+    } else {
+        // If clicking on available slot, mark it and all before as used
+        spellSlots[level].used = index + 1;
+    }
+    
+    localStorage.setItem('dnd-spell-slots', JSON.stringify(spellSlots));
+    renderSpellSlots();
+}
+
+window.toggleSpellSlot = toggleSpellSlot;
+
+// ==================== INITIATIVE TRACKER ====================
+
+function openInitiative() {
+    initiativeModal.classList.remove('hidden');
+    renderInitiative();
+}
+
+function closeInitiativeModal() {
+    initiativeModal.classList.add('hidden');
+}
+
+initiativeBtn.addEventListener('click', openInitiative);
+closeInitiative.addEventListener('click', closeInitiativeModal);
+
+initiativeModal.addEventListener('click', (e) => {
+    if (e.target === initiativeModal) {
+        closeInitiativeModal();
+    }
+});
+
+document.getElementById('addInitiative').addEventListener('click', () => {
+    const name = document.getElementById('initCreatureName').value.trim();
+    const initiative = parseInt(document.getElementById('initRoll').value);
+    const hp = parseInt(document.getElementById('initHP').value) || null;
+    
+    if (!name || isNaN(initiative)) {
+        showNotification('Please enter a name and initiative value', 'warning');
+        return;
+    }
+    
+    initiativeList.push({
+        id: Date.now(),
+        name: name,
+        initiative: initiative,
+        hp: hp,
+        maxHp: hp,
+        active: false
+    });
+    
+    // Sort by initiative (highest first)
+    initiativeList.sort((a, b) => b.initiative - a.initiative);
+    
+    localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+    
+    // Clear inputs
+    document.getElementById('initCreatureName').value = '';
+    document.getElementById('initRoll').value = '';
+    document.getElementById('initHP').value = '';
+    
+    renderInitiative();
+    showNotification(`${name} added to initiative`, 'info');
+});
+
+document.getElementById('clearInitiative').addEventListener('click', () => {
+    if (confirm('Clear all creatures from initiative?')) {
+        initiativeList = [];
+        currentTurn = 0;
+        localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+        renderInitiative();
+        showNotification('Initiative tracker cleared', 'info');
+    }
+});
+
+document.getElementById('nextTurn').addEventListener('click', () => {
+    if (initiativeList.length === 0) return;
+    
+    // Mark current as inactive
+    if (initiativeList[currentTurn]) {
+        initiativeList[currentTurn].active = false;
+    }
+    
+    // Move to next
+    currentTurn = (currentTurn + 1) % initiativeList.length;
+    
+    // Mark new as active
+    initiativeList[currentTurn].active = true;
+    
+    localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+    renderInitiative();
+    
+    const currentCreature = initiativeList[currentTurn];
+    showNotification(`${currentCreature.name}'s turn (Initiative ${currentCreature.initiative})`, 'info');
+});
+
+function renderInitiative() {
+    const listDiv = document.getElementById('initiativeList');
+    
+    if (initiativeList.length === 0) {
+        listDiv.innerHTML = '<p class="empty-state">No creatures in combat. Add combatants above.</p>';
+        return;
+    }
+    
+    listDiv.innerHTML = initiativeList.map((creature, index) => `
+        <div class="initiative-item ${creature.active ? 'active' : ''}">
+            <div class="init-order">${index + 1}</div>
+            <div class="init-info">
+                <div class="init-name">${creature.name}</div>
+                <div class="init-value">Initiative: ${creature.initiative}</div>
+                ${creature.hp !== null ? `
+                    <div class="init-hp">
+                        <input type="number" 
+                               value="${creature.hp}" 
+                               min="0" 
+                               max="${creature.maxHp}"
+                               onchange="updateCreatureHP(${creature.id}, this.value)"
+                               aria-label="Hit points for ${creature.name}">
+                        / ${creature.maxHp} HP
+                    </div>
+                ` : ''}
+            </div>
+            <button class="init-remove" onclick="removeFromInitiative(${creature.id})" aria-label="Remove ${creature.name}">✕</button>
+        </div>
+    `).join('');
+}
+
+function removeFromInitiative(id) {
+    const index = initiativeList.findIndex(c => c.id === id);
+    if (index !== -1) {
+        const creature = initiativeList[index];
+        initiativeList.splice(index, 1);
+        
+        // Adjust current turn if needed
+        if (index < currentTurn) {
+            currentTurn--;
+        } else if (index === currentTurn && currentTurn >= initiativeList.length) {
+            currentTurn = 0;
+        }
+        
+        localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+        renderInitiative();
+        showNotification(`${creature.name} removed from initiative`, 'info');
+    }
+}
+
+function updateCreatureHP(id, newHp) {
+    const creature = initiativeList.find(c => c.id === id);
+    if (creature) {
+        creature.hp = parseInt(newHp);
+        localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+        
+        if (creature.hp <= 0) {
+            showNotification(`${creature.name} has fallen!`, 'warning');
+        }
+    }
+}
+
+window.removeFromInitiative = removeFromInitiative;
+window.updateCreatureHP = updateCreatureHP;
+
+// ==================== KEYBOARD NAVIGATION & ACCESSIBILITY ====================
+
+// Keyboard navigation improvements
+document.addEventListener('keydown', (e) => {
+    // Escape key to close modals
+    if (e.key === 'Escape') {
+        if (!modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+        }
+        if (!compareModal.classList.contains('hidden')) {
+            compareModal.classList.add('hidden');
+        }
+        if (!favoritesModal.classList.contains('hidden')) {
+            favoritesModal.classList.add('hidden');
+        }
+        if (!diceRollerModal.classList.contains('hidden')) {
+            diceRollerModal.classList.add('hidden');
+        }
+        if (!spellSlotsModal.classList.contains('hidden')) {
+            spellSlotsModal.classList.add('hidden');
+        }
+        if (!initiativeModal.classList.contains('hidden')) {
+            initiativeModal.classList.add('hidden');
+        }
+    }
+    
+    // Ctrl/Cmd + K to focus search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+    }
+    
+    // Ctrl/Cmd + D for dice roller
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        openDiceRoller();
+    }
+});
+
+// Update category button accessibility
+categoryBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        categoryBtns.forEach(b => {
+            b.setAttribute('aria-selected', 'false');
+        });
+        btn.setAttribute('aria-selected', 'true');
+    });
+});
+
+// ==================== PARTY MODE (PeerJS) ====================
+
+function openPartyMode() {
+    partyModeModal.classList.remove('hidden');
+}
+
+function closePartyModeModal() {
+    partyModeModal.classList.add('hidden');
+}
+
+partyModeBtn.addEventListener('click', openPartyMode);
+closePartyMode.addEventListener('click', closePartyModeModal);
+
+partyModeModal.addEventListener('click', (e) => {
+    if (e.target === partyModeModal) {
+        closePartyModeModal();
+    }
+});
+
+// Host a party
+hostPartyBtn.addEventListener('click', () => {
+    if (peer && peer.open) {
+        showNotification('Already hosting a party!', 'warning');
+        return;
+    }
+    
+    // Create a new peer with a random ID
+    peer = new Peer();
+    
+    peer.on('open', (id) => {
+        isHost = true;
+        roomId = id;
+        
+        // Show room code
+        document.getElementById('roomCode').textContent = id;
+        document.getElementById('hostInfo').classList.remove('hidden');
+        hostPartyBtn.classList.add('hidden');
+        document.getElementById('partyMembers').classList.remove('hidden');
+        
+        updatePartyStatus('Hosting party - waiting for members...');
+        showNotification('Party room created!', 'info');
+        playSound('connect');
+    });
+    
+    peer.on('connection', (conn) => {
+        handleNewConnection(conn);
+    });
+    
+    peer.on('error', (err) => {
+        console.error('Peer error:', err);
+        showNotification('Connection error: ' + err.message, 'warning');
+    });
+});
+
+// Join a party
+joinPartyBtn.addEventListener('click', () => {
+    const code = document.getElementById('joinRoomCode').value.trim();
+    
+    if (!code) {
+        showNotification('Please enter a room code', 'warning');
+        return;
+    }
+    
+    if (peer && peer.open) {
+        showNotification('Already in a party!', 'warning');
+        return;
+    }
+    
+    // Create a new peer
+    peer = new Peer();
+    
+    peer.on('open', () => {
+        isHost = false;
+        roomId = code;
+        
+        // Connect to host
+        const conn = peer.connect(code);
+        
+        conn.on('open', () => {
+            connections.push(conn);
+            document.getElementById('partyMembers').classList.remove('hidden');
+            updatePartyStatus('Connected to party!');
+            showNotification('Joined party successfully!', 'info');
+            playSound('connect');
+            
+            // Send initial sync request
+            conn.send({
+                type: 'join',
+                peerId: peer.id
+            });
+            
+            setupConnectionListeners(conn);
+        });
+        
+        conn.on('error', (err) => {
+            console.error('Connection error:', err);
+            showNotification('Failed to join party: ' + err.message, 'warning');
+        });
+    });
+    
+    peer.on('error', (err) => {
+        console.error('Peer error:', err);
+        showNotification('Connection error: ' + err.message, 'warning');
+    });
+});
+
+// Disconnect from party
+disconnectHostBtn.addEventListener('click', () => {
+    disconnectParty();
+});
+
+function disconnectParty() {
+    // Close all connections
+    connections.forEach(conn => conn.close());
+    connections = [];
+    
+    // Destroy peer
+    if (peer) {
+        peer.destroy();
+        peer = null;
+    }
+    
+    // Reset UI
+    document.getElementById('hostInfo').classList.add('hidden');
+    document.getElementById('partyMembers').classList.add('hidden');
+    hostPartyBtn.classList.remove('hidden');
+    document.getElementById('joinRoomCode').value = '';
+    
+    isHost = false;
+    roomId = null;
+    
+    updatePartyStatus('Disconnected from party');
+    updateMembersList();
+    showNotification('Disconnected from party', 'info');
+}
+
+function handleNewConnection(conn) {
+    connections.push(conn);
+    
+    conn.on('open', () => {
+        updatePartyStatus(`${connections.length} member(s) connected`);
+        updateMembersList();
+        showNotification('New member joined the party!', 'info');
+        playSound('connect');
+        
+        // Send current state to new member
+        syncStateToConnection(conn);
+    });
+    
+    setupConnectionListeners(conn);
+}
+
+function setupConnectionListeners(conn) {
+    conn.on('data', (data) => {
+        handlePartyMessage(data, conn);
+    });
+    
+    conn.on('close', () => {
+        connections = connections.filter(c => c !== conn);
+        updateMembersList();
+        updatePartyStatus(connections.length > 0 ? `${connections.length} member(s) connected` : 'Waiting for members...');
+        showNotification('A member left the party', 'info');
+    });
+}
+
+function handlePartyMessage(data, conn) {
+    switch (data.type) {
+        case 'join':
+            if (isHost) {
+                syncStateToConnection(conn);
+            }
+            updateMembersList();
+            break;
+            
+        case 'initiative':
+            if (document.getElementById('shareInitiative').checked) {
+                initiativeList = data.list;
+                currentTurn = data.currentTurn;
+                localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+                if (!initiativeModal.classList.contains('hidden')) {
+                    renderInitiative();
+                }
+            }
+            break;
+            
+        case 'spellSlots':
+            if (document.getElementById('shareSpellSlots').checked) {
+                // Only update if not host (host is authoritative)
+                if (!isHost) {
+                    spellSlots = data.slots;
+                    localStorage.setItem('dnd-spell-slots', JSON.stringify(spellSlots));
+                    if (!spellSlotsModal.classList.contains('hidden')) {
+                        renderSpellSlots();
+                    }
+                }
+            }
+            break;
+            
+        case 'diceRoll':
+            if (document.getElementById('shareDiceRolls').checked) {
+                showNotification(`${data.player || 'Someone'} rolled ${data.result}!`, 'info');
+                playSound('dice');
+            }
+            break;
+            
+        case 'sync':
+            // Receive full state from host
+            if (data.initiative) {
+                initiativeList = data.initiative.list;
+                currentTurn = data.initiative.currentTurn;
+                localStorage.setItem('dnd-initiative', JSON.stringify(initiativeList));
+            }
+            if (data.spellSlots) {
+                spellSlots = data.spellSlots;
+                localStorage.setItem('dnd-spell-slots', JSON.stringify(spellSlots));
+            }
+            break;
+    }
+}
+
+function syncStateToConnection(conn) {
+    conn.send({
+        type: 'sync',
+        initiative: {
+            list: initiativeList,
+            currentTurn: currentTurn
+        },
+        spellSlots: spellSlots
+    });
+}
+
+function broadcastToParty(message) {
+    connections.forEach(conn => {
+        if (conn.open) {
+            conn.send(message);
+        }
+    });
+}
+
+function updatePartyStatus(message) {
+    document.getElementById('partyStatus').innerHTML = `<p>${message}</p>`;
+}
+
+function updateMembersList() {
+    const list = document.getElementById('membersList');
+    if (connections.length === 0 && !isHost) {
+        list.innerHTML = '<p class="empty-state">No members yet</p>';
+        return;
+    }
+    
+    // Build member list safely
+    const memberItems = [];
+    
+    if (isHost) {
+        const hostItem = document.createElement('div');
+        hostItem.className = 'party-member';
+        hostItem.innerHTML = '<span class="member-badge">👑</span> You (Host)';
+        memberItems.push(hostItem);
+    }
+    
+    connections.forEach((conn, i) => {
+        const memberItem = document.createElement('div');
+        memberItem.className = 'party-member';
+        
+        const badge = document.createElement('span');
+        badge.className = 'member-badge';
+        badge.textContent = '🎲';
+        
+        const nameText = document.createTextNode(` Member ${i + 1}`);
+        
+        memberItem.appendChild(badge);
+        memberItem.appendChild(nameText);
+        
+        if (isHost) {
+            const kickBtn = document.createElement('button');
+            kickBtn.className = 'kick-btn';
+            kickBtn.textContent = '✕';
+            kickBtn.setAttribute('aria-label', `Kick Member ${i + 1}`);
+            kickBtn.addEventListener('click', () => kickMember(i));
+            memberItem.appendChild(kickBtn);
+        }
+        
+        memberItems.push(memberItem);
+    });
+    
+    list.innerHTML = '';
+    memberItems.forEach(item => list.appendChild(item));
+}
+
+function kickMember(index) {
+    if (connections[index]) {
+        connections[index].close();
+        connections.splice(index, 1);
+        updateMembersList();
+        showNotification('Member removed from party', 'info');
+    }
+}
+
+window.kickMember = kickMember;
+
+// Copy room code
+document.getElementById('copyRoomCode').addEventListener('click', () => {
+    const code = document.getElementById('roomCode').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        showNotification('Room code copied!', 'info');
+    });
+});
+
+// Broadcast initiative changes when added
+document.getElementById('addInitiative').addEventListener('click', () => {
+    // Wait a bit for the list to update, then broadcast
+    setTimeout(() => {
+        if (document.getElementById('shareInitiative')?.checked) {
+            broadcastToParty({
+                type: 'initiative',
+                list: initiativeList,
+                currentTurn: currentTurn
+            });
+        }
+    }, 100);
+});
+
+// Broadcast turn changes when advancing
+document.getElementById('nextTurn').addEventListener('click', () => {
+    setTimeout(() => {
+        if (document.getElementById('shareInitiative')?.checked) {
+            broadcastToParty({
+                type: 'initiative',
+                list: initiativeList,
+                currentTurn: currentTurn
+            });
+        }
+    }, 100);
+});
+
+// ==================== QUICK REFERENCE ====================
+
+function openQuickRef() {
+    quickRefModal.classList.remove('hidden');
+}
+
+function closeQuickRefModal() {
+    quickRefModal.classList.add('hidden');
+    document.getElementById('refDetail').classList.add('hidden');
+}
+
+floatingQuickRef.addEventListener('click', openQuickRef);
+closeQuickRef.addEventListener('click', closeQuickRefModal);
+
+quickRefModal.addEventListener('click', (e) => {
+    if (e.target === quickRefModal) {
+        closeQuickRefModal();
+    }
+});
+
+const quickRefData = {
+    conditions: {
+        title: '🩹 Conditions',
+        content: `
+            <h3>Common Conditions</h3>
+            <ul>
+                <li><strong>Blinded:</strong> Can't see, auto-fail sight checks, attacks have disadvantage, attacks against have advantage</li>
+                <li><strong>Charmed:</strong> Can't attack charmer, charmer has advantage on social checks</li>
+                <li><strong>Frightened:</strong> Disadvantage on checks while source is in sight, can't move closer to source</li>
+                <li><strong>Grappled:</strong> Speed becomes 0, ends if grappler is incapacitated</li>
+                <li><strong>Paralyzed:</strong> Incapacitated, auto-fail STR/DEX saves, attacks against have advantage, hits are crits if within 5ft</li>
+                <li><strong>Poisoned:</strong> Disadvantage on attack rolls and ability checks</li>
+                <li><strong>Prone:</strong> Disadvantage on attacks, attacks against have advantage if within 5ft, disadvantage if farther</li>
+                <li><strong>Restrained:</strong> Speed becomes 0, disadvantage on DEX saves, attacks against have advantage</li>
+                <li><strong>Stunned:</strong> Incapacitated, auto-fail STR/DEX saves, attacks against have advantage</li>
+                <li><strong>Unconscious:</strong> Incapacitated, can't move/speak, drops items, auto-fail STR/DEX saves, attacks have advantage, hits are crits if within 5ft, unaware of surroundings</li>
+            </ul>
+        `
+    },
+    actions: {
+        title: '⚔️ Actions in Combat',
+        content: `
+            <h3>On Your Turn</h3>
+            <ul>
+                <li><strong>Action:</strong> Attack, Cast a Spell, Dash, Disengage, Dodge, Help, Hide, Ready, Search, Use an Object</li>
+                <li><strong>Bonus Action:</strong> Some spells/abilities grant bonus actions</li>
+                <li><strong>Movement:</strong> Move up to your speed</li>
+                <li><strong>Free Action:</strong> Drop prone, drop an item, speak</li>
+                <li><strong>Reaction (off turn):</strong> Opportunity attack, readied action, some spells</li>
+            </ul>
+            <h3>Common Actions</h3>
+            <ul>
+                <li><strong>Attack:</strong> Make one melee or ranged attack</li>
+                <li><strong>Cast a Spell:</strong> Cast a spell with casting time of 1 action</li>
+                <li><strong>Dash:</strong> Gain extra movement equal to your speed</li>
+                <li><strong>Disengage:</strong> Your movement doesn't provoke opportunity attacks</li>
+                <li><strong>Dodge:</strong> Attacks against you have disadvantage, you have advantage on DEX saves</li>
+                <li><strong>Help:</strong> Give an ally advantage on their next check or attack</li>
+                <li><strong>Hide:</strong> Make a Stealth check to hide</li>
+                <li><strong>Ready:</strong> Choose a trigger and prepare an action to use as a reaction</li>
+            </ul>
+        `
+    },
+    cover: {
+        title: '🛡️ Cover',
+        content: `
+            <h3>Cover Types</h3>
+            <ul>
+                <li><strong>Half Cover:</strong> +2 to AC and DEX saves (e.g., low wall, furniture, other creatures)</li>
+                <li><strong>Three-Quarters Cover:</strong> +5 to AC and DEX saves (e.g., portcullis, arrow slit, thick tree trunk)</li>
+                <li><strong>Total Cover:</strong> Can't be targeted directly (e.g., completely behind wall, around corner)</li>
+            </ul>
+            <p><em>A target has cover only if an attack or effect originates on the opposite side of the cover.</em></p>
+        `
+    },
+    advantage: {
+        title: '🎲 Advantage/Disadvantage',
+        content: `
+            <h3>How It Works</h3>
+            <p><strong>Advantage:</strong> Roll 2d20, take the higher result</p>
+            <p><strong>Disadvantage:</strong> Roll 2d20, take the lower result</p>
+            <p><em>If you have both advantage and disadvantage, they cancel out and you roll normally, regardless of how many you have.</em></p>
+            
+            <h3>Common Sources of Advantage</h3>
+            <ul>
+                <li>Attacking a prone enemy (within 5ft)</li>
+                <li>Attacking an unseen/hidden enemy</li>
+                <li>Help action from an ally</li>
+                <li>Some spells and abilities</li>
+            </ul>
+            
+            <h3>Common Sources of Disadvantage</h3>
+            <ul>
+                <li>Attacking while prone</li>
+                <li>Attacking a prone enemy (from range)</li>
+                <li>Attacking when you can't see the target</li>
+                <li>Some conditions (frightened, poisoned, etc.)</li>
+            </ul>
+        `
+    },
+    restTypes: {
+        title: '😴 Rests',
+        content: `
+            <h3>Short Rest (1 hour minimum)</h3>
+            <ul>
+                <li>Spend Hit Dice to regain HP (roll + CON modifier per die)</li>
+                <li>Regain some class abilities</li>
+                <li>Warlocks regain spell slots</li>
+            </ul>
+            
+            <h3>Long Rest (8 hours, 6 sleeping)</h3>
+            <ul>
+                <li>Regain all HP</li>
+                <li>Regain spent Hit Dice (up to half your total)</li>
+                <li>Regain all spell slots</li>
+                <li>Regain all class abilities</li>
+                <li>Reset exhaustion by 1 level</li>
+            </ul>
+            <p><em>You can only benefit from one long rest in a 24-hour period.</em></p>
+        `
+    },
+    movement: {
+        title: '🏃 Movement',
+        content: `
+            <h3>Standard Speeds</h3>
+            <ul>
+                <li><strong>Walking:</strong> 30ft (most races)</li>
+                <li><strong>Swimming/Climbing:</strong> Costs 2ft per 1ft moved (unless special speed)</li>
+                <li><strong>Crawling (prone):</strong> Costs 2ft per 1ft moved</li>
+                <li><strong>Difficult Terrain:</strong> Costs 2ft per 1ft moved</li>
+            </ul>
+            
+            <h3>Special Movement</h3>
+            <ul>
+                <li><strong>Jumping:</strong> Long jump = STR score (with 10ft run), half without</li>
+                <li><strong>High Jump:</strong> 3 + STR modifier feet (with 10ft run), half without</li>
+                <li><strong>Squeezing:</strong> Move through space 1 size smaller, costs 1 extra foot per foot, disadvantage on attacks/DEX saves</li>
+            </ul>
+        `
+    }
+};
+
+function showRefDetail(key) {
+    const data = quickRefData[key];
+    if (!data) return;
+    
+    const detailDiv = document.getElementById('refDetail');
+    detailDiv.innerHTML = `
+        <h2>${data.title}</h2>
+        ${data.content}
+        <button onclick="closeRefDetail()" class="control-btn">Back to Categories</button>
+    `;
+    detailDiv.classList.remove('hidden');
+}
+
+function closeRefDetail() {
+    document.getElementById('refDetail').classList.add('hidden');
+}
+
+window.showRefDetail = showRefDetail;
+window.closeRefDetail = closeRefDetail;
+
+// ==================== THEMES ====================
+
+const themes = {
+    default: 'Default (Parchment)',
+    'dark-forest': 'Dark Forest',
+    draconic: 'Draconic',
+    celestial: 'Celestial',
+    underdark: 'Underdark'
+};
+
+themeSelector.addEventListener('click', () => {
+    const themeList = Object.entries(themes).map(([key, name]) => 
+        `<button class="theme-option ${currentTheme === key ? 'active' : ''}" data-theme="${key}">${name}</button>`
+    ).join('');
+    
+    showCustomModal('Choose Theme', themeList, (modal) => {
+        modal.querySelectorAll('.theme-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyTheme(btn.dataset.theme);
+                modal.remove();
+            });
+        });
+    });
+});
+
+function applyTheme(theme) {
+    currentTheme = theme;
+    document.body.className = theme !== 'default' ? `theme-${theme}` : '';
+    localStorage.setItem('dnd-theme', theme);
+    showNotification(`Theme changed to ${themes[theme]}`, 'info');
+}
+
+// Apply saved theme on load
+if (currentTheme && currentTheme !== 'default') {
+    document.body.className = `theme-${currentTheme}`;
+}
+
+function showCustomModal(title, content, setupFn) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>${title}</h2>
+            <div class="custom-modal-body">${content}</div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    if (setupFn) setupFn(modal);
+    
+    // Small delay to trigger transition
+    setTimeout(() => modal.classList.remove('hidden'), 10);
+}
+
+// ==================== SOUND EFFECTS ====================
+
+const sounds = {
+    dice: () => playTone(400, 50),
+    connect: () => playTone(600, 100),
+    notification: () => playTone(500, 80)
+};
+
+function playSound(type) {
+    if (!soundEnabled) return;
+    
+    if (sounds[type]) {
+        sounds[type]();
+    }
+}
+
+function playTone(frequency, duration) {
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration / 1000);
+    } catch (e) {
+        console.warn('Audio not supported', e);
+    }
+}
+
+// Save sound preference
+document.getElementById('soundEffects')?.addEventListener('change', (e) => {
+    soundEnabled = e.target.checked;
+    localStorage.setItem('dnd-sound', soundEnabled);
+});
+
+// ==================== ENHANCED API CACHING WITH INDEXEDDB ====================
+
+async function saveToIndexedDB(endpoint, data) {
+    if (!db) return;
+    
+    try {
+        const transaction = db.transaction(['apiCache'], 'readwrite');
+        const store = transaction.objectStore('apiCache');
+        
+        await store.put({
+            endpoint: endpoint,
+            data: data,
+            timestamp: Date.now()
+        });
+    } catch (error) {
+        console.error('Failed to save to IndexedDB:', error);
+    }
+}
+
+async function loadFromIndexedDB(endpoint) {
+    if (!db) return null;
+    
+    try {
+        const transaction = db.transaction(['apiCache'], 'readonly');
+        const store = transaction.objectStore('apiCache');
+        const request = store.get(endpoint);
+        
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => {
+                const result = request.result;
+                if (result && (Date.now() - result.timestamp < DB_CACHE_DURATION)) {
+                    resolve(result.data);
+                } else {
+                    resolve(null);
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Failed to load from IndexedDB:', error);
+        return null;
+    }
+}
+
+// Enhanced dice roll with party broadcasting and sound effects
+function rollDice(diceType) {
+    const count = parseInt(document.getElementById('diceCount').value) || 1;
+    const modifier = parseInt(document.getElementById('diceModifier').value) || 0;
+    const advantage = document.getElementById('advantageCheck').checked;
+    const disadvantage = document.getElementById('disadvantageCheck').checked;
+    
+    const sides = parseInt(diceType.substring(1));
+    const rolls = [];
+    
+    for (let i = 0; i < count; i++) {
+        if (advantage || disadvantage) {
+            const roll1 = Math.floor(Math.random() * sides) + 1;
+            const roll2 = Math.floor(Math.random() * sides) + 1;
+            if (advantage) {
+                rolls.push({ roll: Math.max(roll1, roll2), detail: `[${roll1}, ${roll2}] adv` });
+            } else {
+                rolls.push({ roll: Math.min(roll1, roll2), detail: `[${roll1}, ${roll2}] dis` });
+            }
+        } else {
+            rolls.push({ roll: Math.floor(Math.random() * sides) + 1, detail: '' });
+        }
+    }
+    
+    const sum = rolls.reduce((acc, r) => acc + r.roll, 0);
+    const total = sum + modifier;
+    
+    // Display result
+    const resultsDiv = document.getElementById('diceResults');
+    const rollDetails = rolls.map(r => r.detail ? `${r.roll} ${r.detail}` : r.roll).join(' + ');
+    const modifierStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+    
+    resultsDiv.innerHTML = `
+        <div class="dice-result-main">
+            <div class="dice-result-total">${total}</div>
+            <div class="dice-result-detail">
+                ${count}${diceType}: [${rollDetails}] ${modifier !== 0 ? modifierStr : ''}
+            </div>
+        </div>
+    `;
+    
+    // Add to history
+    const historyEntry = {
+        dice: `${count}${diceType}`,
+        modifier: modifier,
+        total: total,
+        rolls: rolls.map(r => r.roll),
+        timestamp: new Date().toLocaleTimeString()
+    };
+    
+    diceHistory.unshift(historyEntry);
+    if (diceHistory.length > 10) {
+        diceHistory = diceHistory.slice(0, 10);
+    }
+    
+    localStorage.setItem('dnd-dice-history', JSON.stringify(diceHistory));
+    renderDiceHistory();
+    
+    // Broadcast to party
+    if (document.getElementById('shareDiceRolls')?.checked) {
+        broadcastToParty({
+            type: 'diceRoll',
+            result: `${count}${diceType} = ${total}`,
+            player: 'You'
+        });
+    }
+    
+    // Play sound
+    playSound('dice');
+    
+    // Use 3D dice if enabled
+    if (enable3DDice && diceBox) {
+        roll3DDice(diceType, count);
+    }
+}
+
+// ==================== QUALITY OF LIFE FEATURES ====================
+
+// ==================== BOOKMARKS SYSTEM ====================
+
+function openBookmarks() {
+    bookmarksModal.classList.remove('hidden');
+    renderBookmarks();
+}
+
+function closeBookmarksModal() {
+    bookmarksModal.classList.add('hidden');
+}
+
+bookmarksBtn.addEventListener('click', openBookmarks);
+closeBookmarks.addEventListener('click', closeBookmarksModal);
+
+bookmarksModal.addEventListener('click', (e) => {
+    if (e.target === bookmarksModal) {
+        closeBookmarksModal();
+    }
+});
+
+function addBookmark(item, category) {
+    const bookmarkItem = {
+        ...item,
+        category: category,
+        bookmarkedAt: new Date().toISOString()
+    };
+    
+    // Check if already bookmarked
+    const exists = bookmarks.some(b => b.index === item.index && b.category === category);
+    if (exists) {
+        showNotification('Already bookmarked!', 'info');
+        return;
+    }
+    
+    bookmarks.push(bookmarkItem);
+    localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+    updateBookmarkCount();
+    showNotification('Added to bookmarks!', 'info');
+}
+
+function removeBookmark(index, category) {
+    bookmarks = bookmarks.filter(b => !(b.index === index && b.category === category));
+    localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+    updateBookmarkCount();
+    renderBookmarks();
+    showNotification('Removed from bookmarks', 'info');
+}
+
+function updateBookmarkCount() {
+    bookmarkCount.textContent = bookmarks.length;
+}
+
+function renderBookmarks() {
+    const content = document.getElementById('bookmarksContent');
+    
+    if (bookmarks.length === 0) {
+        content.innerHTML = '<p class="empty-state">No bookmarks yet. Click the 🔖 button on any item to bookmark it!</p>';
+        return;
+    }
+    
+    // Group by category
+    const grouped = {};
+    bookmarks.forEach(item => {
+        if (!grouped[item.category]) {
+            grouped[item.category] = [];
+        }
+        grouped[item.category].push(item);
+    });
+    
+    content.innerHTML = Object.entries(grouped).map(([cat, items]) => `
+        <div class="bookmark-category">
+            <h3>${cat.charAt(0).toUpperCase() + cat.slice(1)}</h3>
+            <div class="bookmark-items">
+                ${items.map(item => `
+                    <div class="bookmark-item">
+                        <span class="bookmark-name" onclick="loadItemFromBookmark('${item.category}', '${item.index}')">${item.name}</span>
+                        <button class="bookmark-remove" onclick="removeBookmark('${item.index}', '${item.category}')" aria-label="Remove ${item.name}">✕</button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadItemFromBookmark(category, index) {
+    if (currentCategory !== category) {
+        currentCategory = category;
+        categoryBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.category === category);
+        });
+        loadCategory(category).then(() => {
+            loadDetails(index);
+        });
+    } else {
+        loadDetails(index);
+    }
+    closeBookmarksModal();
+}
+
+window.removeBookmark = removeBookmark;
+window.loadItemFromBookmark = loadItemFromBookmark;
+
+// Clear all bookmarks
+document.getElementById('clearBookmarks').addEventListener('click', () => {
+    if (confirm('Clear all bookmarks?')) {
+        bookmarks = [];
+        localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+        updateBookmarkCount();
+        renderBookmarks();
+        showNotification('All bookmarks cleared', 'info');
+    }
+});
+
+// Export bookmarks
+document.getElementById('exportBookmarks').addEventListener('click', () => {
+    const dataStr = JSON.stringify(bookmarks, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dnd-bookmarks-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showNotification('Bookmarks exported!', 'info');
+});
+
+// Import bookmarks
+document.getElementById('importBookmarks').addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    // Merge with existing bookmarks
+                    imported.forEach(item => {
+                        if (!bookmarks.some(b => b.index === item.index && b.category === item.category)) {
+                            bookmarks.push(item);
+                        }
+                    });
+                    localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+                    updateBookmarkCount();
+                    renderBookmarks();
+                    showNotification(`Imported ${imported.length} bookmarks!`, 'info');
+                } else {
+                    showNotification('Invalid JSON format', 'warning');
+                }
+            } catch (error) {
+                showNotification('Failed to import bookmarks', 'warning');
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+});
+
+// Initialize bookmark count
+updateBookmarkCount();
+
+// ==================== SEARCH HISTORY ====================
+
+function addToSearchHistory(searchTerm, category) {
+    if (!searchTerm || searchTerm.trim() === '') return;
+    
+    const historyItem = {
+        term: searchTerm.trim(),
+        category: category,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Remove duplicates
+    searchHistory = searchHistory.filter(item => 
+        !(item.term.toLowerCase() === historyItem.term.toLowerCase() && item.category === category)
+    );
+    
+    // Add to beginning
+    searchHistory.unshift(historyItem);
+    
+    // Limit to 20 items
+    if (searchHistory.length > 20) {
+        searchHistory = searchHistory.slice(0, 20);
+    }
+    
+    localStorage.setItem('dnd-search-history', JSON.stringify(searchHistory));
+}
+
+function toggleSearchHistory() {
+    searchHistoryPanel.classList.toggle('hidden');
+    if (!searchHistoryPanel.classList.contains('hidden')) {
+        renderSearchHistory();
+    }
+}
+
+function renderSearchHistory() {
+    const list = document.getElementById('searchHistoryList');
+    
+    if (searchHistory.length === 0) {
+        list.innerHTML = '<p class="empty-state">No search history yet</p>';
+        return;
+    }
+    
+    list.innerHTML = searchHistory.map((item, index) => `
+        <div class="search-history-item" onclick="applySearchFromHistory(${index})">
+            <span class="history-term">${item.term}</span>
+            <span class="history-category">${item.category}</span>
+            <span class="history-time">${new Date(item.timestamp).toLocaleDateString()}</span>
+        </div>
+    `).join('');
+}
+
+function applySearchFromHistory(index) {
+    const item = searchHistory[index];
+    if (item) {
+        // Switch category if needed
+        if (currentCategory !== item.category) {
+            currentCategory = item.category;
+            categoryBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === item.category);
+            });
+            loadCategory(item.category).then(() => {
+                searchInput.value = item.term;
+                performSearch();
+            });
+        } else {
+            searchInput.value = item.term;
+            performSearch();
+        }
+        toggleSearchHistory();
+    }
+}
+
+window.applySearchFromHistory = applySearchFromHistory;
+
+searchHistoryBtn.addEventListener('click', toggleSearchHistory);
+
+document.getElementById('clearSearchHistory').addEventListener('click', () => {
+    if (confirm('Clear search history?')) {
+        searchHistory = [];
+        localStorage.setItem('dnd-search-history', JSON.stringify(searchHistory));
+        renderSearchHistory();
+        showNotification('Search history cleared', 'info');
+    }
+});
+
+// Add search history tracking to performSearch
+const originalPerformSearch = performSearch;
+function performSearch() {
+    const searchTerm = searchInput.value.trim();
+    if (searchTerm) {
+        addToSearchHistory(searchTerm, currentCategory);
+    }
+    return originalPerformSearch ? originalPerformSearch() : null;
+}
+
+// ==================== 3D DICE INTEGRATION ====================
+
+async function init3DDice() {
+    if (!window.DiceBox || diceBox) return;
+    
+    try {
+        diceBox = new window.DiceBox('#dice3DContainer', {
+            assetPath: 'https://unpkg.com/@3d-dice/dice-box@1.1.4/dist/',
+            theme: 'default',
+            scale: 5
+        });
+        
+        await diceBox.init();
+        console.log('3D Dice initialized');
+    } catch (error) {
+        console.error('Failed to initialize 3D dice:', error);
+        showNotification('Failed to load 3D dice. Using 2D mode.', 'warning');
+        enable3DDice = false;
+    }
+}
+
+async function roll3DDice(diceType, count) {
+    if (!diceBox) {
+        await init3DDice();
+    }
+    
+    if (!diceBox) return;
+    
+    try {
+        const notation = `${count}${diceType}`;
+        await diceBox.roll(notation);
+        document.getElementById('dice3DContainer').classList.remove('hidden');
+    } catch (error) {
+        console.error('Failed to roll 3D dice:', error);
+    }
+}
+
+if (enable3DDiceCheckbox) {
+    enable3DDiceCheckbox.checked = enable3DDice;
+    
+    enable3DDiceCheckbox.addEventListener('change', async (e) => {
+        enable3DDice = e.target.checked;
+        localStorage.setItem('dnd-3d-dice', enable3DDice);
+        
+        if (enable3DDice) {
+            document.getElementById('dice3DContainer').classList.remove('hidden');
+            await init3DDice();
+        } else {
+            document.getElementById('dice3DContainer').classList.add('hidden');
+        }
+    });
+}
+
+// Initialize 3D dice if enabled
+if (enable3DDice && window.DiceBox) {
+    init3DDice();
+}

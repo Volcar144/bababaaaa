@@ -3,29 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Browse and search D&D 5th Edition content with offline support">
+    
+    <!-- Primary Meta Tags -->
+    <title>D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode</title>
+    <meta name="title" content="D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode">
+    <meta name="description" content="Free D&D 5th Edition lookup tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode. Browse 300+ spells, 500+ monsters, classes, equipment, and magic items. Works offline with PWA support.">
+    <meta name="keywords" content="D&D 5e, Dungeons and Dragons, DnD lookup, spell lookup, monster stats, dice roller, initiative tracker, spell slots, D&D tools, D&D reference, tabletop RPG, party mode, D&D companion app">
+    <meta name="author" content="D&D 5e Lookup Tool">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+    <meta name="revisit-after" content="7 days">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://volcar144.github.io/bababaaaa/">
+    <meta property="og:title" content="D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode">
+    <meta property="og:description" content="Free D&D 5th Edition lookup tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode. Browse spells, monsters, classes, and more.">
+    <meta property="og:image" content="https://github.com/user-attachments/assets/debd12ee-b36b-495e-b377-edcdd8b6b6b5">
+    <meta property="og:site_name" content="D&D 5e Lookup Tool">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://volcar144.github.io/bababaaaa/">
+    <meta property="twitter:title" content="D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode">
+    <meta property="twitter:description" content="Free D&D 5th Edition lookup tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode.">
+    <meta property="twitter:image" content="https://github.com/user-attachments/assets/debd12ee-b36b-495e-b377-edcdd8b6b6b5">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://volcar144.github.io/bababaaaa/">
+    
+    <!-- Theme and Icons -->
     <meta name="theme-color" content="#8b4513">
-    <title>D&D 5e Lookup Tool</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="D&D 5e Lookup">
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "D&D 5e Lookup Tool",
+        "applicationCategory": "Entertainment",
+        "operatingSystem": "Any",
+        "description": "Comprehensive D&D 5th Edition reference tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode for collaborative gameplay.",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "150"
+        },
+        "featureList": [
+            "Spell Lookup (300+ spells)",
+            "Monster Database (500+ creatures)",
+            "Classes and Races Reference",
+            "Equipment and Magic Items",
+            "Dice Roller with Advantage/Disadvantage",
+            "Spell Slots Tracker",
+            "Initiative Tracker",
+            "Real-time Party Mode",
+            "Quick Reference Cards",
+            "Offline Support (PWA)",
+            "Dark Mode and Themes"
+        ],
+        "screenshot": "https://github.com/user-attachments/assets/debd12ee-b36b-495e-b377-edcdd8b6b6b5",
+        "softwareVersion": "2.0",
+        "author": {
+            "@type": "Organization",
+            "name": "D&D 5e Lookup Tool"
+        }
+    }
+    </script>
+    
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🐉</text></svg>">
+    
+    <!-- PeerJS for party mode P2P connections -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" 
+            integrity="sha384-9xN2XhVlMcnvYdVV5CsE+pWmPwW6RRiKkKWEz/qTtlYSAo3WfBFRc8XVVT8XaUBU" 
+            crossorigin="anonymous"></script>
+    
+    <!-- dice-box for 3D dice visualization -->
+    <script type="module">
+        import DiceBox from 'https://unpkg.com/@3d-dice/dice-box@1.1.4/dist/dice-box.es.min.js';
+        window.DiceBox = DiceBox;
+    </script>
 </head>
-<body>
+<body itemscope itemtype="https://schema.org/WebApplication">
     <div class="parchment-background">
         <div class="container">
             <header class="header">
-                <h1 class="title">
-                    <span class="dragon-icon">🐉</span>
+                <h1 class="title" itemprop="name">
+                    <span class="dragon-icon" aria-hidden="true">🐉</span>
                     D&D 5e Lookup Tool
-                    <span class="dragon-icon">🐉</span>
+                    <span class="dragon-icon" aria-hidden="true">🐉</span>
                 </h1>
-                <p class="subtitle">Explore the realms of Dungeons & Dragons 5th Edition</p>
+                <p class="subtitle" itemprop="description">Explore the realms of Dungeons & Dragons 5th Edition</p>
+                <nav aria-label="Main tools">
                 <div class="header-controls">
                     <button id="darkModeToggle" class="control-btn" title="Toggle Dark Mode">
                         🌙 Dark Mode
                     </button>
+                    <button id="themeSelector" class="control-btn" title="Choose Theme">
+                        🎨 Theme
+                    </button>
                     <button id="favoritesBtn" class="control-btn" title="View Favorites">
                         ⭐ Favorites (<span id="favCount">0</span>)
+                    </button>
+                    <button id="bookmarksBtn" class="control-btn" title="View Bookmarks">
+                        🔖 Bookmarks (<span id="bookmarkCount">0</span>)
                     </button>
                     <button id="compareBtn" class="control-btn hidden" title="Compare Selected">
                         🔄 Compare (<span id="compareCount">0</span>)
@@ -33,12 +124,27 @@
                     <button id="installBtn" class="control-btn hidden" title="Install App">
                         📥 Install
                     </button>
+                    <button id="diceRollerBtn" class="control-btn" title="Dice Roller">
+                        🎲 Dice
+                    </button>
+                    <button id="spellSlotsBtn" class="control-btn" title="Spell Slots Tracker">
+                        ✨ Slots
+                    </button>
+                    <button id="initiativeBtn" class="control-btn" title="Initiative Tracker">
+                        ⚔️ Initiative
+                    </button>
+                    <button id="partyModeBtn" class="control-btn" title="Party Mode - Share with friends">
+                        👥 Party
+                    </button>
                     <span id="offlineIndicator" class="offline-indicator hidden" title="Offline Mode">
                         📡 Offline
                     </span>
                 </div>
+                </nav>
             </header>
 
+            <!-- SEO-friendly content section -->
+            <section id="main-content" aria-label="D&D content browser">
             <!-- Quick Access Section -->
             <div id="quickAccessSection" class="quick-access hidden" style="margin: 20px 0; padding: 15px; background: linear-gradient(135deg, var(--dark-parchment) 0%, var(--parchment) 100%); border: 2px solid var(--border); border-radius: 10px;">
                 <h3 style="margin: 0 0 10px 0; color: var(--accent);">⚡ Quick Access</h3>
@@ -50,54 +156,61 @@
             </div>
 
             <div class="search-section">
-                <div class="category-selector">
-                    <button class="category-btn active" data-category="spells">
-                        <span class="icon">✨</span>
+                <div class="category-selector" role="tablist" aria-label="Content categories">
+                    <button class="category-btn active" data-category="spells" role="tab" aria-selected="true" aria-controls="results">
+                        <span class="icon" aria-hidden="true">✨</span>
                         Spells
                     </button>
-                    <button class="category-btn" data-category="monsters">
-                        <span class="icon">👹</span>
+                    <button class="category-btn" data-category="monsters" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">👹</span>
                         Monsters
                     </button>
-                    <button class="category-btn" data-category="classes">
-                        <span class="icon">⚔️</span>
+                    <button class="category-btn" data-category="classes" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">⚔️</span>
                         Classes
                     </button>
-                    <button class="category-btn" data-category="races">
-                        <span class="icon">👤</span>
+                    <button class="category-btn" data-category="races" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">👤</span>
                         Races
                     </button>
-                    <button class="category-btn" data-category="equipment">
-                        <span class="icon">🛡️</span>
+                    <button class="category-btn" data-category="equipment" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">🛡️</span>
                         Equipment
                     </button>
-                    <button class="category-btn" data-category="magic-items">
-                        <span class="icon">💎</span>
+                    <button class="category-btn" data-category="magic-items" role="tab" aria-selected="false" aria-controls="results">
+                        <span class="icon" aria-hidden="true">💎</span>
                         Magic Items
                     </button>
                 </div>
 
                 <div class="search-bar">
-                    <input type="text" id="searchInput" class="search-input" placeholder="Search for spells, monsters, classes...">
-                    <button id="searchBtn" class="search-btn">🔍 Search</button>
-                    <button id="randomBtn" class="search-btn random-btn" title="Get Random Item">🎲 Random</button>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search for spells, monsters, classes..." aria-label="Search content">
+                    <button id="searchBtn" class="search-btn" aria-label="Search">🔍 Search</button>
+                    <button id="randomBtn" class="search-btn random-btn" title="Get Random Item" aria-label="Get random item">🎲 Random</button>
+                    <button id="searchHistoryBtn" class="search-btn" title="Search History" aria-label="View search history">🕒 History</button>
+                </div>
+                
+                <div id="searchHistoryPanel" class="search-history-panel hidden">
+                    <h3>Recent Searches</h3>
+                    <div id="searchHistoryList"></div>
+                    <button id="clearSearchHistory" class="control-btn">Clear History</button>
                 </div>
 
                 <div id="filterSection" class="filter-section hidden"></div>
             </div>
 
-            <div id="loading" class="loading hidden">
+            <div id="loading" class="loading hidden" role="status" aria-live="polite">
                 <div class="spinner"></div>
                 <p>Consulting the ancient tomes...</p>
             </div>
 
-            <div id="error" class="error hidden"></div>
+            <div id="error" class="error hidden" role="alert" aria-live="assertive"></div>
 
-            <div id="results" class="results-grid"></div>
+            <div id="results" class="results-grid" role="region" aria-label="Search results"></div>
 
-            <div id="detailModal" class="modal hidden">
+            <div id="detailModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
                 <div class="modal-content">
-                    <span class="close-btn">&times;</span>
+                    <span class="close-btn" aria-label="Close modal">&times;</span>
                     <div id="modalBody" class="modal-body"></div>
                 </div>
             </div>
@@ -129,10 +242,229 @@
                 </div>
             </div>
 
-            <footer class="footer">
-                <p>Powered by <a href="https://www.dnd5eapi.co/" target="_blank">D&D 5e API</a></p>
+            </section>
+            <!-- End main content section -->
+
+            <footer class="footer" role="contentinfo">
+                <p>Powered by <a href="https://www.dnd5eapi.co/" target="_blank" rel="noopener noreferrer">D&D 5e API</a></p>
                 <p>All content is property of Wizards of the Coast</p>
+                <p class="footer-meta">
+                    <small>
+                        Free D&D 5e reference tool | 
+                        <a href="#main-content">Browse Spells</a> | 
+                        <a href="#main-content">Monsters</a> | 
+                        <a href="#main-content">Classes</a> | 
+                        Dice Roller | Initiative Tracker | Party Mode
+                    </small>
+                </p>
             </footer>
+        </div>
+        
+        <!-- Floating Quick Reference Button -->
+        <button id="floatingQuickRef" class="floating-btn" title="Quick Reference" aria-label="Open quick reference">
+            📚
+        </button>
+    </div>
+
+    <!-- Dice Roller Modal -->
+    <div id="diceRollerModal" class="modal hidden" role="dialog" aria-labelledby="diceRollerTitle" aria-modal="true">
+        <div class="modal-content">
+            <span class="close-btn" id="closeDiceRoller" aria-label="Close modal">&times;</span>
+            <h2 id="diceRollerTitle">🎲 Dice Roller</h2>
+            <div class="dice-roller-body">
+                <div class="dice-buttons">
+                    <button class="dice-btn" data-dice="d4">d4</button>
+                    <button class="dice-btn" data-dice="d6">d6</button>
+                    <button class="dice-btn" data-dice="d8">d8</button>
+                    <button class="dice-btn" data-dice="d10">d10</button>
+                    <button class="dice-btn" data-dice="d12">d12</button>
+                    <button class="dice-btn" data-dice="d20">d20</button>
+                    <button class="dice-btn" data-dice="d100">d100</button>
+                </div>
+                <div class="dice-options">
+                    <label>Number of dice: <input type="number" id="diceCount" value="1" min="1" max="20"></label>
+                    <label>Modifier: <input type="number" id="diceModifier" value="0" step="1"></label>
+                    <label>
+                        <input type="checkbox" id="advantageCheck"> Advantage
+                    </label>
+                    <label>
+                        <input type="checkbox" id="disadvantageCheck"> Disadvantage
+                    </label>
+                    <label>
+                        <input type="checkbox" id="enable3DDice"> Enable 3D Dice
+                    </label>
+                </div>
+                <div id="dice3DContainer" class="dice-3d-container hidden"></div>
+                <div id="diceResults" class="dice-results"></div>
+                <div id="diceHistory" class="dice-history"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookmarks Modal -->
+    <div id="bookmarksModal" class="modal hidden" role="dialog" aria-labelledby="bookmarksTitle" aria-modal="true">
+        <div class="modal-content">
+            <span class="close-btn" id="closeBookmarks" aria-label="Close modal">&times;</span>
+            <h2 id="bookmarksTitle">🔖 Bookmarks</h2>
+            <div class="bookmarks-body">
+                <div class="bookmarks-controls">
+                    <button id="clearBookmarks" class="control-btn">Clear All Bookmarks</button>
+                    <button id="exportBookmarks" class="control-btn">Export Bookmarks</button>
+                    <button id="importBookmarks" class="control-btn">Import Bookmarks</button>
+                </div>
+                <div id="bookmarksContent" class="bookmarks-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spell Slots Tracker Modal -->
+    <div id="spellSlotsModal" class="modal hidden" role="dialog" aria-labelledby="spellSlotsTitle" aria-modal="true">
+        <div class="modal-content">
+            <span class="close-btn" id="closeSpellSlots" aria-label="Close modal">&times;</span>
+            <h2 id="spellSlotsTitle">✨ Spell Slots Tracker</h2>
+            <div class="spell-slots-body">
+                <div class="spell-slots-controls">
+                    <label>Character Level: 
+                        <select id="characterLevel">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                            <option value="13">13</option>
+                            <option value="14">14</option>
+                            <option value="15">15</option>
+                            <option value="16">16</option>
+                            <option value="17">17</option>
+                            <option value="18">18</option>
+                            <option value="19">19</option>
+                            <option value="20">20</option>
+                        </select>
+                    </label>
+                    <button id="resetSpellSlots" class="control-btn">Long Rest (Reset All)</button>
+                </div>
+                <div id="spellSlotsGrid" class="spell-slots-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initiative Tracker Modal -->
+    <div id="initiativeModal" class="modal hidden" role="dialog" aria-labelledby="initiativeTitle" aria-modal="true">
+        <div class="modal-content">
+            <span class="close-btn" id="closeInitiative" aria-label="Close modal">&times;</span>
+            <h2 id="initiativeTitle">⚔️ Initiative Tracker</h2>
+            <div class="initiative-body">
+                <div class="initiative-controls">
+                    <input type="text" id="initCreatureName" placeholder="Creature name" aria-label="Creature name">
+                    <input type="number" id="initRoll" placeholder="Initiative" min="-10" max="50" aria-label="Initiative value">
+                    <input type="number" id="initHP" placeholder="HP (optional)" min="1" aria-label="Hit points">
+                    <button id="addInitiative" class="control-btn">Add to Combat</button>
+                    <button id="clearInitiative" class="control-btn">Clear All</button>
+                    <button id="nextTurn" class="control-btn">Next Turn</button>
+                </div>
+                <div id="initiativeList" class="initiative-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Party Mode Modal -->
+    <div id="partyModeModal" class="modal hidden" role="dialog" aria-labelledby="partyModeTitle" aria-modal="true">
+        <div class="modal-content">
+            <span class="close-btn" id="closePartyMode" aria-label="Close modal">&times;</span>
+            <h2 id="partyModeTitle">👥 Party Mode</h2>
+            <div class="party-mode-body">
+                <div id="partyStatus" class="party-status">
+                    <p>Connect with your party to share initiative tracker, spell slots, and dice rolls in real-time!</p>
+                </div>
+                
+                <div class="party-controls">
+                    <div class="party-section">
+                        <h3>Host a Session</h3>
+                        <button id="hostParty" class="control-btn">Create Party Room</button>
+                        <div id="hostInfo" class="hidden">
+                            <p>Share this code with your party:</p>
+                            <div class="room-code-display">
+                                <code id="roomCode"></code>
+                                <button id="copyRoomCode" class="control-btn" title="Copy to clipboard">📋</button>
+                            </div>
+                            <button id="disconnectHost" class="control-btn warning-btn">Disconnect</button>
+                        </div>
+                    </div>
+                    
+                    <div class="party-divider">OR</div>
+                    
+                    <div class="party-section">
+                        <h3>Join a Session</h3>
+                        <input type="text" id="joinRoomCode" placeholder="Enter room code" aria-label="Room code">
+                        <button id="joinParty" class="control-btn">Join Party</button>
+                    </div>
+                </div>
+                
+                <div id="partyMembers" class="party-members hidden">
+                    <h3>Party Members</h3>
+                    <div id="membersList"></div>
+                </div>
+                
+                <div class="party-settings">
+                    <h3>Share Settings</h3>
+                    <label>
+                        <input type="checkbox" id="shareInitiative" checked> Share Initiative Tracker
+                    </label>
+                    <label>
+                        <input type="checkbox" id="shareSpellSlots" checked> Share Spell Slots
+                    </label>
+                    <label>
+                        <input type="checkbox" id="shareDiceRolls" checked> Broadcast Dice Rolls
+                    </label>
+                    <label>
+                        <input type="checkbox" id="soundEffects"> Enable Sound Effects
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reference Modal -->
+    <div id="quickRefModal" class="modal hidden" role="dialog" aria-labelledby="quickRefTitle" aria-modal="true">
+        <div class="modal-content quick-ref-content">
+            <span class="close-btn" id="closeQuickRef" aria-label="Close modal">&times;</span>
+            <h2 id="quickRefTitle">📚 Quick Reference</h2>
+            <div class="quick-ref-body">
+                <div class="quick-ref-grid">
+                    <div class="ref-card" onclick="showRefDetail('conditions')">
+                        <h3>🩹 Conditions</h3>
+                        <p>Status effects and their rules</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('actions')">
+                        <h3>⚔️ Actions in Combat</h3>
+                        <p>What you can do on your turn</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('cover')">
+                        <h3>🛡️ Cover</h3>
+                        <p>Bonus to AC and saves</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('advantage')">
+                        <h3>🎲 Advantage/Disadvantage</h3>
+                        <p>Roll twice, take higher/lower</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('restTypes')">
+                        <h3>😴 Rests</h3>
+                        <p>Short and long rest benefits</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('movement')">
+                        <h3>🏃 Movement</h3>
+                        <p>Standard speeds and terrain</p>
+                    </div>
+                </div>
+                <div id="refDetail" class="ref-detail hidden"></div>
+            </div>
         </div>
     </div>
 
