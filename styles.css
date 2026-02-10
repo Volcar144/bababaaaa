@@ -190,6 +190,20 @@ body {
         0 0 20px rgba(212, 175, 55, 0.5);
 }
 
+.offline-indicator {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+    color: white;
+    border: 2px solid #e65100;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    box-shadow: 
+        0 3px 8px var(--shadow),
+        0 0 15px rgba(255, 152, 0, 0.4);
+    animation: pulse 2s ease-in-out infinite;
+}
+
 /* Search Section */
 .search-section {
     margin-bottom: 30px;

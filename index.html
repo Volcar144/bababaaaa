@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Browse and search D&D 5th Edition content with offline support">
+    <meta name="theme-color" content="#8b4513">
     <title>D&D 5e Lookup Tool</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🐉</text></svg>">
 </head>
 <body>
     <div class="parchment-background">
@@ -26,6 +30,12 @@
                     <button id="compareBtn" class="control-btn hidden" title="Compare Selected">
                         🔄 Compare (<span id="compareCount">0</span>)
                     </button>
+                    <button id="installBtn" class="control-btn hidden" title="Install App">
+                        📥 Install
+                    </button>
+                    <span id="offlineIndicator" class="offline-indicator hidden" title="Offline Mode">
+                        📡 Offline
+                    </span>
                 </div>
             </header>
 

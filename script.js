@@ -7,6 +7,8 @@ let allResults = [];
 let favorites = [];
 let compareList = [];
 let currentFilters = {};
+let isOffline = !navigator.onLine;
+let deferredPrompt = null;
 
 // Load favorites safely
 try {
@@ -14,6 +16,19 @@ try {
 } catch (error) {
     console.error('Failed to load favorites:', error);
     favorites = [];
+}
+
+// Register Service Worker for offline support
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+                console.log('Service Worker registered:', registration);
+            })
+            .catch((error) => {
+                console.error('Service Worker registration failed:', error);
+            });
+    });
 }
 
 // DOM Elements
@@ -39,12 +54,54 @@ const closeCompare = document.getElementById('closeCompare');
 const favoritesModal = document.getElementById('favoritesModal');
 const favoritesBody = document.getElementById('favoritesBody');
 const closeFavorites = document.getElementById('closeFavorites');
+const offlineIndicator = document.getElementById('offlineIndicator');
+const installBtn = document.getElementById('installBtn');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     loadCategory(currentCategory);
     updateFavoritesCount();
     loadDarkMode();
+    updateOfflineStatus();
+});
+
+// Offline/Online detection
+window.addEventListener('online', () => {
+    isOffline = false;
+    updateOfflineStatus();
+    showNotification('You are back online!', 'info');
+});
+
+window.addEventListener('offline', () => {
+    isOffline = true;
+    updateOfflineStatus();
+    showNotification('You are offline. Cached content will be available.', 'warning');
+});
+
+// PWA Install prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.classList.remove('hidden');
+});
+
+installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+        showNotification('App installed successfully!', 'info');
+    }
+    
+    deferredPrompt = null;
+    installBtn.classList.add('hidden');
+});
+
+window.addEventListener('appinstalled', () => {
+    showNotification('D&D Lookup Tool installed! You can now use it offline.', 'info');
+    installBtn.classList.add('hidden');
 });
 
 categoryBtns.forEach(btn => {
@@ -111,10 +168,20 @@ favoritesModal.addEventListener('click', (e) => {
 async function fetchFromAPI(endpoint) {
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) {
+            // Check if we're offline and service worker provided cached data
+            if (response.status === 503 && isOffline) {
+                throw new Error('Offline - no cached data');
+            }
+            throw new Error('Network response was not ok');
+        }
         return await response.json();
     } catch (error) {
         console.error('API Error:', error);
+        // If offline and error, try to use cached data via service worker
+        if (isOffline) {
+            throw new Error('Offline mode - unable to fetch data. Try loading categories you\'ve visited before.');
+        }
         throw error;
     }
 }
@@ -891,4 +958,13 @@ function showNotification(message, type = 'info') {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// Offline status indicator
+function updateOfflineStatus() {
+    if (isOffline) {
+        offlineIndicator.classList.remove('hidden');
+    } else {
+        offlineIndicator.classList.add('hidden');
+    }
 }
