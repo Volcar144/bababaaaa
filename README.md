@@ -1,6 +1,6 @@
 # 🐉 D&D 5e Lookup Tool
 
-An amazing, interactive lookup tool for Dungeons & Dragons 5th Edition content. Browse spells, monsters, classes, equipment, and magic items with a beautiful fantasy-themed interface!
+An amazing, interactive lookup tool for Dungeon & Dragons 5th Edition content. Browse spells, monsters, classes, equipment, and magic items with a beautiful fantasy-themed interface!
 
 ![D&D 5e Lookup Tool](https://github.com/user-attachments/assets/d308ba71-f142-4f9d-9a77-80f8a71a6ca4)
 
