@@ -146,10 +146,10 @@
     </div>
 
     <!-- Dice Roller Modal -->
-    <div id="diceRollerModal" class="modal hidden">
+    <div id="diceRollerModal" class="modal hidden" role="dialog" aria-labelledby="diceRollerTitle" aria-modal="true">
         <div class="modal-content">
-            <span class="close-btn" id="closeDiceRoller">&times;</span>
-            <h2>🎲 Dice Roller</h2>
+            <span class="close-btn" id="closeDiceRoller" aria-label="Close modal">&times;</span>
+            <h2 id="diceRollerTitle">🎲 Dice Roller</h2>
             <div class="dice-roller-body">
                 <div class="dice-buttons">
                     <button class="dice-btn" data-dice="d4">d4</button>
@@ -177,10 +177,10 @@
     </div>
 
     <!-- Spell Slots Tracker Modal -->
-    <div id="spellSlotsModal" class="modal hidden">
+    <div id="spellSlotsModal" class="modal hidden" role="dialog" aria-labelledby="spellSlotsTitle" aria-modal="true">
         <div class="modal-content">
-            <span class="close-btn" id="closeSpellSlots">&times;</span>
-            <h2>✨ Spell Slots Tracker</h2>
+            <span class="close-btn" id="closeSpellSlots" aria-label="Close modal">&times;</span>
+            <h2 id="spellSlotsTitle">✨ Spell Slots Tracker</h2>
             <div class="spell-slots-body">
                 <div class="spell-slots-controls">
                     <label>Character Level: 
@@ -215,10 +215,10 @@
     </div>
 
     <!-- Initiative Tracker Modal -->
-    <div id="initiativeModal" class="modal hidden">
+    <div id="initiativeModal" class="modal hidden" role="dialog" aria-labelledby="initiativeTitle" aria-modal="true">
         <div class="modal-content">
-            <span class="close-btn" id="closeInitiative">&times;</span>
-            <h2>⚔️ Initiative Tracker</h2>
+            <span class="close-btn" id="closeInitiative" aria-label="Close modal">&times;</span>
+            <h2 id="initiativeTitle">⚔️ Initiative Tracker</h2>
             <div class="initiative-body">
                 <div class="initiative-controls">
                     <input type="text" id="initCreatureName" placeholder="Creature name" aria-label="Creature name">

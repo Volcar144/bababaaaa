@@ -1422,7 +1422,7 @@ function renderDiceHistory() {
     const historyDiv = document.getElementById('diceHistory');
     
     if (diceHistory.length === 0) {
-        historyDiv.innerHTML = '<p style="color: #666; font-style: italic;">No rolls yet. Click a dice button to start!</p>';
+        historyDiv.innerHTML = '<p class="empty-state">No rolls yet. Click a dice button to start!</p>';
         return;
     }
     
@@ -1505,14 +1505,12 @@ function renderSpellSlots() {
     const maxSlots = SPELL_SLOTS_BY_LEVEL[level];
     const grid = document.getElementById('spellSlotsGrid');
     
-    // Initialize spell slots if not set
-    if (!spellSlots[level]) {
-        for (let i = 1; i <= 9; i++) {
-            if (!spellSlots[i]) {
-                spellSlots[i] = { used: 0, max: maxSlots[i - 1] };
-            } else {
-                spellSlots[i].max = maxSlots[i - 1];
-            }
+    // Initialize spell slots if not set for this spell level
+    for (let i = 1; i <= 9; i++) {
+        if (!spellSlots[i]) {
+            spellSlots[i] = { used: 0, max: maxSlots[i - 1] };
+        } else {
+            spellSlots[i].max = maxSlots[i - 1];
         }
     }
     
@@ -1655,7 +1653,7 @@ function renderInitiative() {
     const listDiv = document.getElementById('initiativeList');
     
     if (initiativeList.length === 0) {
-        listDiv.innerHTML = '<p style="color: #666; font-style: italic;">No creatures in combat. Add combatants above.</p>';
+        listDiv.innerHTML = '<p class="empty-state">No creatures in combat. Add combatants above.</p>';
         return;
     }
     
@@ -1757,7 +1755,6 @@ document.addEventListener('keydown', (e) => {
 
 // Update category button accessibility
 categoryBtns.forEach(btn => {
-    const originalListener = btn.onclick;
     btn.addEventListener('click', () => {
         categoryBtns.forEach(b => {
             b.setAttribute('aria-selected', 'false');

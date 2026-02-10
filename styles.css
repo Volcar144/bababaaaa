@@ -1394,3 +1394,12 @@ select:focus {
     }
 }
 
+/* Empty state messages */
+.empty-state {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+    margin: 0;
+}
+
