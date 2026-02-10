@@ -4,10 +4,14 @@ const API_BASE_URL = 'https://www.dnd5eapi.co/api';
 // State management
 let currentCategory = 'spells';
 let allResults = [];
+let favorites = JSON.parse(localStorage.getItem('dnd-favorites')) || [];
+let compareList = [];
+let currentFilters = {};
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
+const randomBtn = document.getElementById('randomBtn');
 const resultsContainer = document.getElementById('results');
 const loadingElement = document.getElementById('loading');
 const errorElement = document.getElementById('error');
@@ -15,10 +19,24 @@ const modal = document.getElementById('detailModal');
 const modalBody = document.getElementById('modalBody');
 const closeBtn = document.querySelector('.close-btn');
 const categoryBtns = document.querySelectorAll('.category-btn');
+const darkModeToggle = document.getElementById('darkModeToggle');
+const favoritesBtn = document.getElementById('favoritesBtn');
+const compareBtn = document.getElementById('compareBtn');
+const favCount = document.getElementById('favCount');
+const compareCount = document.getElementById('compareCount');
+const filterSection = document.getElementById('filterSection');
+const compareModal = document.getElementById('compareModal');
+const compareBody = document.getElementById('compareBody');
+const closeCompare = document.getElementById('closeCompare');
+const favoritesModal = document.getElementById('favoritesModal');
+const favoritesBody = document.getElementById('favoritesBody');
+const closeFavorites = document.getElementById('closeFavorites');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     loadCategory(currentCategory);
+    updateFavoritesCount();
+    loadDarkMode();
 });
 
 categoryBtns.forEach(btn => {
@@ -27,6 +45,8 @@ categoryBtns.forEach(btn => {
         btn.classList.add('active');
         currentCategory = btn.dataset.category;
         searchInput.value = '';
+        compareList = [];
+        updateCompareCount();
         loadCategory(currentCategory);
     });
 });
@@ -36,6 +56,12 @@ searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') performSearch();
 });
 
+searchInput.addEventListener('input', () => {
+    performSearch();
+});
+
+randomBtn.addEventListener('click', getRandomItem);
+
 closeBtn.addEventListener('click', () => {
     modal.classList.add('hidden');
 });
@@ -43,6 +69,30 @@ closeBtn.addEventListener('click', () => {
 modal.addEventListener('click', (e) => {
     if (e.target === modal) {
         modal.classList.add('hidden');
+    }
+});
+
+darkModeToggle.addEventListener('click', toggleDarkMode);
+favoritesBtn.addEventListener('click', showFavorites);
+compareBtn.addEventListener('click', showCompare);
+
+closeCompare.addEventListener('click', () => {
+    compareModal.classList.add('hidden');
+});
+
+closeFavorites.addEventListener('click', () => {
+    favoritesModal.classList.add('hidden');
+});
+
+compareModal.addEventListener('click', (e) => {
+    if (e.target === compareModal) {
+        compareModal.classList.add('hidden');
+    }
+});
+
+favoritesModal.addEventListener('click', (e) => {
+    if (e.target === favoritesModal) {
+        favoritesModal.classList.add('hidden');
     }
 });
 
@@ -62,6 +112,7 @@ async function loadCategory(category) {
     showLoading();
     hideError();
     resultsContainer.innerHTML = '';
+    updateFilters();
 
     try {
         const data = await fetchFromAPI(`/${category}`);
@@ -113,14 +164,48 @@ function createResultCard(item) {
     card.className = 'result-card';
     
     const icon = getCategoryIcon(currentCategory);
+    const isFavorited = favorites.some(fav => fav.index === item.index && fav.category === currentCategory);
+    const isSelected = compareList.some(comp => comp.index === item.index);
+    
+    if (isSelected) {
+        card.classList.add('selected');
+    }
     
     card.innerHTML = `
+        <div class="card-actions">
+            <button class="card-action-btn favorite-btn ${isFavorited ? 'favorited' : ''}" 
+                    data-index="${item.index}" 
+                    title="${isFavorited ? 'Remove from favorites' : 'Add to favorites'}">
+                ${isFavorited ? '⭐' : '☆'}
+            </button>
+            <button class="card-action-btn compare-btn" 
+                    data-index="${item.index}" 
+                    title="${isSelected ? 'Remove from compare' : 'Add to compare'}">
+                ${isSelected ? '✓' : '🔄'}
+            </button>
+        </div>
         <h3>${icon} ${item.name}</h3>
         <span class="badge">${currentCategory}</span>
         <p class="description">Click to view details</p>
     `;
 
-    card.addEventListener('click', () => loadDetails(item.index));
+    card.addEventListener('click', (e) => {
+        if (!e.target.closest('.card-actions')) {
+            loadDetails(item.index);
+        }
+    });
+    
+    const favoriteBtn = card.querySelector('.favorite-btn');
+    favoriteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFavorite(item);
+    });
+    
+    const compareBtn = card.querySelector('.compare-btn');
+    compareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleCompare(item);
+    });
 
     return card;
 }
@@ -173,6 +258,9 @@ function displayDetails(data) {
             break;
         case 'magic-items':
             content += displayMagicItemDetails(data);
+            break;
+        case 'races':
+            content += displayRaceDetails(data);
             break;
         default:
             content += displayGenericDetails(data);
@@ -399,6 +487,66 @@ function displayMagicItemDetails(item) {
     return html;
 }
 
+function displayRaceDetails(race) {
+    let html = '<div class="stat-block">';
+    
+    if (race.speed) {
+        html += `<div class="stat-row"><span class="stat-label">Speed:</span><span>${race.speed} ft</span></div>`;
+    }
+    if (race.alignment) {
+        html += `<div class="stat-row"><span class="stat-label">Alignment:</span><span>${race.alignment}</span></div>`;
+    }
+    if (race.age) {
+        html += `<div class="stat-row"><span class="stat-label">Age:</span><span>${race.age}</span></div>`;
+    }
+    if (race.size) {
+        html += `<div class="stat-row"><span class="stat-label">Size:</span><span>${race.size}</span></div>`;
+    }
+    if (race.size_description) {
+        html += `<div class="stat-row"><span class="stat-label">Size Description:</span><span>${race.size_description}</span></div>`;
+    }
+    
+    html += '</div>';
+
+    if (race.traits && race.traits.length > 0) {
+        html += '<h3>Traits</h3><ul>';
+        race.traits.forEach(trait => {
+            html += `<li>${trait.name}</li>`;
+        });
+        html += '</ul>';
+    }
+
+    if (race.ability_bonuses && race.ability_bonuses.length > 0) {
+        html += '<h3>Ability Score Increases</h3><ul>';
+        race.ability_bonuses.forEach(bonus => {
+            html += `<li>${bonus.ability_score?.name || 'Unknown'}: +${bonus.bonus}</li>`;
+        });
+        html += '</ul>';
+    }
+
+    if (race.starting_proficiencies && race.starting_proficiencies.length > 0) {
+        html += '<h3>Starting Proficiencies</h3><ul>';
+        race.starting_proficiencies.forEach(prof => {
+            html += `<li>${prof.name}</li>`;
+        });
+        html += '</ul>';
+    }
+
+    if (race.languages && race.languages.length > 0) {
+        html += '<h3>Languages</h3><ul>';
+        race.languages.forEach(lang => {
+            html += `<li>${lang.name}</li>`;
+        });
+        html += '</ul>';
+    }
+
+    if (race.language_desc) {
+        html += `<h3>Language Description</h3><p>${race.language_desc}</p>`;
+    }
+
+    return html;
+}
+
 function displayGenericDetails(data) {
     let html = '';
 
@@ -452,4 +600,255 @@ function showError(message) {
 
 function hideError() {
     errorElement.classList.add('hidden');
+}
+
+// New Feature Functions
+
+// Dark Mode
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark-mode', isDark);
+    darkModeToggle.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+}
+
+function loadDarkMode() {
+    const isDark = localStorage.getItem('dark-mode') === 'true';
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+        darkModeToggle.textContent = '☀️ Light Mode';
+    }
+}
+
+// Favorites
+function toggleFavorite(item) {
+    const existingIndex = favorites.findIndex(fav => 
+        fav.index === item.index && fav.category === currentCategory
+    );
+    
+    if (existingIndex !== -1) {
+        favorites.splice(existingIndex, 1);
+    } else {
+        favorites.push({
+            ...item,
+            category: currentCategory,
+            addedAt: Date.now()
+        });
+    }
+    
+    localStorage.setItem('dnd-favorites', JSON.stringify(favorites));
+    updateFavoritesCount();
+    
+    // Refresh display
+    performSearch();
+}
+
+function updateFavoritesCount() {
+    favCount.textContent = favorites.length;
+}
+
+function showFavorites() {
+    if (favorites.length === 0) {
+        favoritesBody.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⭐</div>
+                <h3>No Favorites Yet</h3>
+                <p>Start adding your favorite items by clicking the star icon on any card!</p>
+            </div>
+        `;
+    } else {
+        favoritesBody.innerHTML = '';
+        favorites.forEach(fav => {
+            const item = document.createElement('div');
+            item.className = 'favorite-item';
+            item.innerHTML = `
+                <div class="favorite-item-info">
+                    <h4>${getCategoryIcon(fav.category)} ${fav.name}</h4>
+                    <span class="badge">${fav.category}</span>
+                </div>
+                <div class="favorite-item-actions">
+                    <button class="fav-action-btn view">View</button>
+                    <button class="fav-action-btn remove">Remove</button>
+                </div>
+            `;
+            
+            item.querySelector('.view').addEventListener('click', async () => {
+                favoritesModal.classList.add('hidden');
+                // Switch category if needed
+                if (currentCategory !== fav.category) {
+                    currentCategory = fav.category;
+                    categoryBtns.forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.category === currentCategory);
+                    });
+                    await loadCategory(currentCategory);
+                }
+                loadDetails(fav.index);
+            });
+            
+            item.querySelector('.remove').addEventListener('click', () => {
+                toggleFavorite(fav);
+                showFavorites();
+            });
+            
+            favoritesBody.appendChild(item);
+        });
+    }
+    
+    favoritesModal.classList.remove('hidden');
+}
+
+// Compare
+function toggleCompare(item) {
+    const existingIndex = compareList.findIndex(comp => comp.index === item.index);
+    
+    if (existingIndex !== -1) {
+        compareList.splice(existingIndex, 1);
+    } else {
+        if (compareList.length >= 4) {
+            alert('You can compare up to 4 items at once');
+            return;
+        }
+        compareList.push({
+            ...item,
+            category: currentCategory
+        });
+    }
+    
+    updateCompareCount();
+    performSearch();
+}
+
+function updateCompareCount() {
+    compareCount.textContent = compareList.length;
+    compareBtn.classList.toggle('hidden', compareList.length === 0);
+}
+
+async function showCompare() {
+    if (compareList.length === 0) return;
+    
+    compareBody.innerHTML = '<p style="text-align: center; padding: 20px;">Loading comparison...</p>';
+    compareModal.classList.remove('hidden');
+    
+    compareBody.innerHTML = '';
+    
+    for (const item of compareList) {
+        try {
+            const data = await fetchFromAPI(`/${item.category}/${item.index}`);
+            const compareItem = document.createElement('div');
+            compareItem.className = 'compare-item';
+            
+            let details = '';
+            switch(item.category) {
+                case 'spells':
+                    details = displaySpellDetails(data);
+                    break;
+                case 'monsters':
+                    details = displayMonsterDetails(data);
+                    break;
+                default:
+                    details = displayGenericDetails(data);
+            }
+            
+            compareItem.innerHTML = `
+                <button class="compare-remove" data-index="${item.index}">×</button>
+                <h3>${getCategoryIcon(item.category)} ${data.name}</h3>
+                <span class="badge">${item.category}</span>
+                ${details}
+            `;
+            
+            compareItem.querySelector('.compare-remove').addEventListener('click', () => {
+                toggleCompare(item);
+                showCompare();
+            });
+            
+            compareBody.appendChild(compareItem);
+        } catch (error) {
+            console.error('Error loading compare item:', error);
+        }
+    }
+}
+
+// Random Item
+function getRandomItem() {
+    if (allResults.length === 0) {
+        alert('No items available in this category');
+        return;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * allResults.length);
+    const randomItem = allResults[randomIndex];
+    loadDetails(randomItem.index);
+}
+
+// Advanced Filters
+function updateFilters() {
+    filterSection.innerHTML = '';
+    
+    if (currentCategory === 'spells') {
+        filterSection.classList.remove('hidden');
+        filterSection.innerHTML = `
+            <label>Level:</label>
+            <select id="spellLevelFilter">
+                <option value="">All Levels</option>
+                <option value="0">Cantrip</option>
+                <option value="1">1st Level</option>
+                <option value="2">2nd Level</option>
+                <option value="3">3rd Level</option>
+                <option value="4">4th Level</option>
+                <option value="5">5th Level</option>
+                <option value="6">6th Level</option>
+                <option value="7">7th Level</option>
+                <option value="8">8th Level</option>
+                <option value="9">9th Level</option>
+            </select>
+        `;
+        
+        document.getElementById('spellLevelFilter').addEventListener('change', applyFilters);
+    } else if (currentCategory === 'monsters') {
+        filterSection.classList.remove('hidden');
+        filterSection.innerHTML = `
+            <label>Challenge Rating:</label>
+            <select id="crFilter">
+                <option value="">All CR</option>
+                <option value="0-5">CR 0-5</option>
+                <option value="6-10">CR 6-10</option>
+                <option value="11-15">CR 11-15</option>
+                <option value="16-20">CR 16-20</option>
+                <option value="21+">CR 21+</option>
+            </select>
+        `;
+        
+        document.getElementById('crFilter').addEventListener('change', applyFilters);
+    } else {
+        filterSection.classList.add('hidden');
+    }
+}
+
+async function applyFilters() {
+    showLoading();
+    
+    try {
+        let filtered = allResults;
+        
+        if (currentCategory === 'spells') {
+            const levelFilter = document.getElementById('spellLevelFilter')?.value;
+            if (levelFilter !== '') {
+                // Fetch detailed info to filter by level
+                const detailedResults = [];
+                for (const item of allResults) {
+                    const data = await fetchFromAPI(`/${currentCategory}/${item.index}`);
+                    if (data.level !== undefined && data.level.toString() === levelFilter) {
+                        detailedResults.push(item);
+                    }
+                }
+                filtered = detailedResults;
+            }
+        }
+        
+        displayResults(filtered);
+    } catch (error) {
+        console.error('Filter error:', error);
+    } finally {
+        hideLoading();
+    }
 }

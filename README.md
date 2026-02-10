@@ -7,8 +7,13 @@ An amazing, interactive lookup tool for Dungeons & Dragons 5th Edition content. 
 ## ✨ Features
 
 - **Beautiful Fantasy UI**: Parchment-themed design with animated elements
-- **Multiple Categories**: Browse Spells, Monsters, Classes, Equipment, and Magic Items
+- **Dark Mode**: Toggle between light and dark themes with persistent preference
+- **6 Content Categories**: Browse Spells, Monsters, Classes, Races, Equipment, and Magic Items
+- **Favorites System**: Save your favorite items with localStorage persistence
+- **Compare Mode**: Compare up to 4 items side-by-side
 - **Real-time Search**: Filter results as you type
+- **Advanced Filters**: Filter spells by level, monsters by CR
+- **Random Item**: Get a random item from the current category
 - **Detailed Views**: Click any item to see comprehensive details in a modal
 - **Responsive Design**: Works perfectly on desktop, tablet, and mobile
 - **Pure Vanilla Stack**: Built with plain HTML, CSS, and JavaScript - no frameworks needed!
@@ -16,8 +21,11 @@ An amazing, interactive lookup tool for Dungeons & Dragons 5th Edition content. 
 ## 🎮 Categories
 
 - **✨ Spells**: View spell details including level, school, casting time, range, components, and descriptions
+  - Filter by spell level (Cantrip, 1st-9th level)
 - **👹 Monsters**: Explore creature stats, abilities, actions, and challenge ratings
+  - Filter by challenge rating ranges
 - **⚔️ Classes**: Learn about character classes, proficiencies, and spellcasting abilities
+- **👤 Races**: Discover playable races with traits, ability bonuses, and starting proficiencies
 - **🛡️ Equipment**: Browse weapons, armor, and gear with costs and properties
 - **💎 Magic Items**: Discover magical treasures and their powerful effects
 
@@ -102,12 +110,18 @@ The tool fetches data from the free [D&D 5e API](https://www.dnd5eapi.co/) and d
 
 ## 🌟 Features Showcase
 
+- **Dark Mode**: Switch themes instantly with persistent localStorage preference
+- **Favorites System**: Bookmark items across all categories with star icons
+- **Compare Mode**: Select multiple items and view them side-by-side for easy comparison
+- **Advanced Filtering**: Filter spells by level or monsters by challenge rating
+- **Random Discovery**: Click the random button to discover new content
 - **Instant Loading**: Fast API responses with loading indicators
 - **Smart Search**: Case-insensitive filtering across all items
 - **Rich Details**: Comprehensive information for each item type
 - **Modal Windows**: Clean, focused detail views
 - **Category Badges**: Visual indicators for item types
 - **Stat Blocks**: Organized display of game statistics
+- **Hover Actions**: Quick-access favorite and compare buttons on card hover
 
 ## 🛡️ Browser Support
 
@@ -134,12 +148,17 @@ Works in all modern browsers:
 ## 🔮 Future Enhancements
 
 Potential additions:
-- Offline mode with cached data
-- Favorites/bookmarking system
-- Advanced filtering options
-- Character sheet integration
-- Custom content support
-- Dark mode toggle
+- ~~Offline mode with cached data~~
+- ~~Favorites/bookmarking system~~ ✅ Added!
+- ~~Advanced filtering options~~ ✅ Added!
+- ~~Character sheet integration~~
+- ~~Custom content support~~
+- ~~Dark mode toggle~~ ✅ Added!
+- ~~Compare items feature~~ ✅ Added!
+- ~~Random item selector~~ ✅ Added!
+- Export favorites to PDF
+- Share links to specific items
+- Dice roller integration
 
 ---
 
