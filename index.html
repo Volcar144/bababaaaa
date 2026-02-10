@@ -228,13 +228,13 @@
                     <span class="close-btn" id="closeFavorites">&times;</span>
                     <h2>⭐ Your Favorites</h2>
                     <div style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button onclick="exportFavoritesPDF()" class="control-btn" style="font-size: 0.9rem;">
+                        <button id="exportFavoritesPDFBtn" class="control-btn" style="font-size: 0.9rem;">
                             📄 Export to PDF
                         </button>
-                        <button onclick="exportFavoritesJSON()" class="control-btn" style="font-size: 0.9rem;">
+                        <button id="exportFavoritesJSONBtn" class="control-btn" style="font-size: 0.9rem;">
                             💾 Export JSON
                         </button>
-                        <button onclick="importFavoritesJSON()" class="control-btn" style="font-size: 0.9rem;">
+                        <button id="importFavoritesJSONBtn" class="control-btn" style="font-size: 0.9rem;">
                             📥 Import JSON
                         </button>
                     </div>
@@ -438,27 +438,27 @@
             <h2 id="quickRefTitle">📚 Quick Reference</h2>
             <div class="quick-ref-body">
                 <div class="quick-ref-grid">
-                    <div class="ref-card" onclick="showRefDetail('conditions')">
+                    <div class="ref-card" data-ref-type="conditions">
                         <h3>🩹 Conditions</h3>
                         <p>Status effects and their rules</p>
                     </div>
-                    <div class="ref-card" onclick="showRefDetail('actions')">
+                    <div class="ref-card" data-ref-type="actions">
                         <h3>⚔️ Actions in Combat</h3>
                         <p>What you can do on your turn</p>
                     </div>
-                    <div class="ref-card" onclick="showRefDetail('cover')">
+                    <div class="ref-card" data-ref-type="cover">
                         <h3>🛡️ Cover</h3>
                         <p>Bonus to AC and saves</p>
                     </div>
-                    <div class="ref-card" onclick="showRefDetail('advantage')">
+                    <div class="ref-card" data-ref-type="advantage">
                         <h3>🎲 Advantage/Disadvantage</h3>
                         <p>Roll twice, take higher/lower</p>
                     </div>
-                    <div class="ref-card" onclick="showRefDetail('restTypes')">
+                    <div class="ref-card" data-ref-type="restTypes">
                         <h3>😴 Rests</h3>
                         <p>Short and long rest benefits</p>
                     </div>
-                    <div class="ref-card" onclick="showRefDetail('movement')">
+                    <div class="ref-card" data-ref-type="movement">
                         <h3>🏃 Movement</h3>
                         <p>Standard speeds and terrain</p>
                     </div>

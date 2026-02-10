@@ -265,6 +265,15 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDarkMode();
     updateOfflineStatus();
     updateQuickAccess();
+    
+    // Add event listeners to quick reference cards
+    document.querySelectorAll('.ref-card').forEach(card => {
+        const refType = card.getAttribute('data-ref-type');
+        if (refType) {
+            card.addEventListener('click', () => showRefDetail(refType));
+            card.style.cursor = 'pointer';
+        }
+    });
 });
 
 // Offline/Online detection
@@ -345,6 +354,11 @@ modal.addEventListener('click', (e) => {
 darkModeToggle.addEventListener('click', toggleDarkMode);
 favoritesBtn.addEventListener('click', showFavorites);
 compareBtn.addEventListener('click', showCompare);
+
+// Favorites modal export/import buttons
+document.getElementById('exportFavoritesPDFBtn')?.addEventListener('click', exportFavoritesPDF);
+document.getElementById('exportFavoritesJSONBtn')?.addEventListener('click', exportFavoritesJSON);
+document.getElementById('importFavoritesJSONBtn')?.addEventListener('click', importFavoritesJSON);
 
 closeCompare.addEventListener('click', () => {
     compareModal.classList.add('hidden');
@@ -1613,21 +1627,26 @@ function renderSpellSlots() {
         
         const slotDiv = document.createElement('div');
         slotDiv.className = 'spell-slot-level';
-        slotDiv.innerHTML = `
-            <div class="spell-slot-header">
-                <h3>Level ${spellLevel}</h3>
-                <span class="spell-slot-count">${available}/${max}</span>
-            </div>
-            <div class="spell-slot-dots">
-                ${Array(max).fill(0).map((_, i) => 
-                    `<button class="spell-slot-dot ${i < used ? 'used' : 'available'}" 
-                             onclick="toggleSpellSlot(${spellLevel}, ${i})"
-                             aria-label="Spell slot ${i + 1} ${i < used ? 'used' : 'available'}">
-                    </button>`
-                ).join('')}
-            </div>
+        const header = document.createElement('div');
+        header.className = 'spell-slot-header';
+        header.innerHTML = `
+            <h3>Level ${spellLevel}</h3>
+            <span class="spell-slot-count">${available}/${max}</span>
         `;
+        slotDiv.appendChild(header);
         
+        const dotsContainer = document.createElement('div');
+        dotsContainer.className = 'spell-slot-dots';
+        
+        for (let i = 0; i < max; i++) {
+            const dot = document.createElement('button');
+            dot.className = `spell-slot-dot ${i < used ? 'used' : 'available'}`;
+            dot.setAttribute('aria-label', `Spell slot ${i + 1} ${i < used ? 'used' : 'available'}`);
+            dot.addEventListener('click', () => toggleSpellSlot(spellLevel, i));
+            dotsContainer.appendChild(dot);
+        }
+        
+        slotDiv.appendChild(dotsContainer);
         grid.appendChild(slotDiv);
     }
 }
@@ -1745,27 +1764,57 @@ function renderInitiative() {
         return;
     }
     
-    listDiv.innerHTML = initiativeList.map((creature, index) => `
-        <div class="initiative-item ${creature.active ? 'active' : ''}">
-            <div class="init-order">${index + 1}</div>
-            <div class="init-info">
-                <div class="init-name">${creature.name}</div>
-                <div class="init-value">Initiative: ${creature.initiative}</div>
-                ${creature.hp !== null ? `
-                    <div class="init-hp">
-                        <input type="number" 
-                               value="${creature.hp}" 
-                               min="0" 
-                               max="${creature.maxHp}"
-                               onchange="updateCreatureHP(${creature.id}, this.value)"
-                               aria-label="Hit points for ${creature.name}">
-                        / ${creature.maxHp} HP
-                    </div>
-                ` : ''}
-            </div>
-            <button class="init-remove" onclick="removeFromInitiative(${creature.id})" aria-label="Remove ${creature.name}">✕</button>
-        </div>
-    `).join('');
+    listDiv.innerHTML = '';
+    initiativeList.forEach((creature, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `initiative-item ${creature.active ? 'active' : ''}`;
+        
+        const orderDiv = document.createElement('div');
+        orderDiv.className = 'init-order';
+        orderDiv.textContent = index + 1;
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'init-info';
+        
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'init-name';
+        nameDiv.textContent = creature.name;
+        
+        const valueDiv = document.createElement('div');
+        valueDiv.className = 'init-value';
+        valueDiv.textContent = `Initiative: ${creature.initiative}`;
+        
+        infoDiv.appendChild(nameDiv);
+        infoDiv.appendChild(valueDiv);
+        
+        if (creature.hp !== null) {
+            const hpDiv = document.createElement('div');
+            hpDiv.className = 'init-hp';
+            
+            const hpInput = document.createElement('input');
+            hpInput.type = 'number';
+            hpInput.value = creature.hp;
+            hpInput.min = '0';
+            hpInput.max = creature.maxHp;
+            hpInput.setAttribute('aria-label', `Hit points for ${creature.name}`);
+            hpInput.addEventListener('change', (e) => updateCreatureHP(creature.id, e.target.value));
+            
+            hpDiv.appendChild(hpInput);
+            hpDiv.appendChild(document.createTextNode(` / ${creature.maxHp} HP`));
+            infoDiv.appendChild(hpDiv);
+        }
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'init-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.setAttribute('aria-label', `Remove ${creature.name}`);
+        removeBtn.addEventListener('click', () => removeFromInitiative(creature.id));
+        
+        itemDiv.appendChild(orderDiv);
+        itemDiv.appendChild(infoDiv);
+        itemDiv.appendChild(removeBtn);
+        listDiv.appendChild(itemDiv);
+    });
 }
 
 function removeFromInitiative(id) {
@@ -2336,8 +2385,14 @@ function showRefDetail(key) {
     detailDiv.innerHTML = `
         <h2>${data.title}</h2>
         ${data.content}
-        <button onclick="closeRefDetail()" class="control-btn">Back to Categories</button>
     `;
+    
+    const backBtn = document.createElement('button');
+    backBtn.className = 'control-btn';
+    backBtn.textContent = 'Back to Categories';
+    backBtn.addEventListener('click', closeRefDetail);
+    detailDiv.appendChild(backBtn);
+    
     detailDiv.classList.remove('hidden');
 }
 
@@ -2345,8 +2400,9 @@ function closeRefDetail() {
     document.getElementById('refDetail').classList.add('hidden');
 }
 
-window.showRefDetail = showRefDetail;
-window.closeRefDetail = closeRefDetail;
+// Remove global assignments as we now use proper event listeners
+// window.showRefDetail = showRefDetail;
+// window.closeRefDetail = closeRefDetail;
 
 // ==================== THEMES ====================
 
