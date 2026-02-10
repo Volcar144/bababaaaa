@@ -87,6 +87,12 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" 
             integrity="sha384-9xN2XhVlMcnvYdVV5CsE+pWmPwW6RRiKkKWEz/qTtlYSAo3WfBFRc8XVVT8XaUBU" 
             crossorigin="anonymous"></script>
+    
+    <!-- dice-box for 3D dice visualization -->
+    <script type="module">
+        import DiceBox from 'https://unpkg.com/@3d-dice/dice-box@1.1.4/dist/dice-box.es.min.js';
+        window.DiceBox = DiceBox;
+    </script>
 </head>
 <body itemscope itemtype="https://schema.org/WebApplication">
     <div class="parchment-background">
@@ -108,6 +114,9 @@
                     </button>
                     <button id="favoritesBtn" class="control-btn" title="View Favorites">
                         ⭐ Favorites (<span id="favCount">0</span>)
+                    </button>
+                    <button id="bookmarksBtn" class="control-btn" title="View Bookmarks">
+                        🔖 Bookmarks (<span id="bookmarkCount">0</span>)
                     </button>
                     <button id="compareBtn" class="control-btn hidden" title="Compare Selected">
                         🔄 Compare (<span id="compareCount">0</span>)
@@ -178,6 +187,13 @@
                     <input type="text" id="searchInput" class="search-input" placeholder="Search for spells, monsters, classes..." aria-label="Search content">
                     <button id="searchBtn" class="search-btn" aria-label="Search">🔍 Search</button>
                     <button id="randomBtn" class="search-btn random-btn" title="Get Random Item" aria-label="Get random item">🎲 Random</button>
+                    <button id="searchHistoryBtn" class="search-btn" title="Search History" aria-label="View search history">🕒 History</button>
+                </div>
+                
+                <div id="searchHistoryPanel" class="search-history-panel hidden">
+                    <h3>Recent Searches</h3>
+                    <div id="searchHistoryList"></div>
+                    <button id="clearSearchHistory" class="control-btn">Clear History</button>
                 </div>
 
                 <div id="filterSection" class="filter-section hidden"></div>
@@ -274,9 +290,29 @@
                     <label>
                         <input type="checkbox" id="disadvantageCheck"> Disadvantage
                     </label>
+                    <label>
+                        <input type="checkbox" id="enable3DDice"> Enable 3D Dice
+                    </label>
                 </div>
+                <div id="dice3DContainer" class="dice-3d-container hidden"></div>
                 <div id="diceResults" class="dice-results"></div>
                 <div id="diceHistory" class="dice-history"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookmarks Modal -->
+    <div id="bookmarksModal" class="modal hidden" role="dialog" aria-labelledby="bookmarksTitle" aria-modal="true">
+        <div class="modal-content">
+            <span class="close-btn" id="closeBookmarks" aria-label="Close modal">&times;</span>
+            <h2 id="bookmarksTitle">🔖 Bookmarks</h2>
+            <div class="bookmarks-body">
+                <div class="bookmarks-controls">
+                    <button id="clearBookmarks" class="control-btn">Clear All Bookmarks</button>
+                    <button id="exportBookmarks" class="control-btn">Export Bookmarks</button>
+                    <button id="importBookmarks" class="control-btn">Import Bookmarks</button>
+                </div>
+                <div id="bookmarksContent" class="bookmarks-content"></div>
             </div>
         </div>
     </div>

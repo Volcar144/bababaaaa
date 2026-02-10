@@ -1793,3 +1793,174 @@ select:focus {
     text-decoration: underline;
 }
 
+/* ==================== QUALITY OF LIFE STYLES ==================== */
+
+/* 3D Dice Container */
+.dice-3d-container {
+    width: 100%;
+    height: 300px;
+    margin: 20px 0;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--dark-parchment);
+}
+
+/* Bookmarks Modal */
+.bookmarks-body {
+    padding: 20px 0;
+}
+
+.bookmarks-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.bookmarks-content {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.bookmark-category {
+    margin-bottom: 30px;
+}
+
+.bookmark-category h3 {
+    color: var(--accent);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+}
+
+.bookmark-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bookmark-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--dark-parchment);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+}
+
+.bookmark-item:hover {
+    background: var(--parchment);
+    transform: translateX(5px);
+}
+
+.bookmark-name {
+    flex: 1;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.bookmark-name:hover {
+    color: var(--accent);
+}
+
+.bookmark-remove {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bookmark-remove:hover {
+    background: #b71c1c;
+}
+
+/* Search History */
+.search-history-panel {
+    background: var(--dark-parchment);
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    margin: 15px 0;
+}
+
+.search-history-panel h3 {
+    color: var(--accent);
+    margin: 0 0 15px 0;
+}
+
+#searchHistoryList {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.search-history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: var(--parchment);
+    border-radius: 5px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    gap: 10px;
+}
+
+.search-history-item:hover {
+    background: var(--accent);
+    color: white;
+    transform: translateX(5px);
+}
+
+.history-term {
+    flex: 1;
+    font-weight: 500;
+}
+
+.history-category {
+    padding: 4px 8px;
+    background: var(--accent);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-transform: capitalize;
+}
+
+.history-time {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    min-width: 100px;
+    text-align: right;
+}
+
+/* Mobile Responsive QoL */
+@media (max-width: 768px) {
+    .bookmarks-controls {
+        flex-direction: column;
+    }
+    
+    .search-history-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .history-time {
+        text-align: left;
+    }
+    
+    .dice-3d-container {
+        height: 200px;
+    }
+}
+

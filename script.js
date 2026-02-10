@@ -34,6 +34,12 @@ let connections = [];
 let isHost = false;
 let roomId = null;
 
+// QoL features state
+let bookmarks = [];
+let searchHistory = [];
+let diceBox = null;
+let enable3DDice = false;
+
 // Load favorites safely
 try {
     favorites = JSON.parse(localStorage.getItem('dnd-favorites')) || [];
@@ -96,6 +102,30 @@ try {
 } catch (error) {
     console.error('Failed to load sound preference:', error);
     soundEnabled = false;
+}
+
+// Load bookmarks
+try {
+    bookmarks = JSON.parse(localStorage.getItem('dnd-bookmarks')) || [];
+} catch (error) {
+    console.error('Failed to load bookmarks:', error);
+    bookmarks = [];
+}
+
+// Load search history
+try {
+    searchHistory = JSON.parse(localStorage.getItem('dnd-search-history')) || [];
+} catch (error) {
+    console.error('Failed to load search history:', error);
+    searchHistory = [];
+}
+
+// Load 3D dice preference
+try {
+    enable3DDice = localStorage.getItem('dnd-3d-dice') === 'true';
+} catch (error) {
+    console.error('Failed to load 3D dice preference:', error);
+    enable3DDice = false;
 }
 
 // Initialize IndexedDB for better caching
@@ -193,6 +223,15 @@ const closeQuickRef = document.getElementById('closeQuickRef');
 
 // Theme selector
 const themeSelector = document.getElementById('themeSelector');
+
+// QoL elements
+const bookmarksBtn = document.getElementById('bookmarksBtn');
+const bookmarksModal = document.getElementById('bookmarksModal');
+const closeBookmarks = document.getElementById('closeBookmarks');
+const bookmarkCount = document.getElementById('bookmarkCount');
+const searchHistoryBtn = document.getElementById('searchHistoryBtn');
+const searchHistoryPanel = document.getElementById('searchHistoryPanel');
+const enable3DDiceCheckbox = document.getElementById('enable3DDice');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -2501,4 +2540,327 @@ function rollDice(diceType) {
     
     // Play sound
     playSound('dice');
+    
+    // Use 3D dice if enabled
+    if (enable3DDice && diceBox) {
+        roll3DDice(diceType, count);
+    }
+}
+
+// ==================== QUALITY OF LIFE FEATURES ====================
+
+// ==================== BOOKMARKS SYSTEM ====================
+
+function openBookmarks() {
+    bookmarksModal.classList.remove('hidden');
+    renderBookmarks();
+}
+
+function closeBookmarksModal() {
+    bookmarksModal.classList.add('hidden');
+}
+
+bookmarksBtn.addEventListener('click', openBookmarks);
+closeBookmarks.addEventListener('click', closeBookmarksModal);
+
+bookmarksModal.addEventListener('click', (e) => {
+    if (e.target === bookmarksModal) {
+        closeBookmarksModal();
+    }
+});
+
+function addBookmark(item, category) {
+    const bookmarkItem = {
+        ...item,
+        category: category,
+        bookmarkedAt: new Date().toISOString()
+    };
+    
+    // Check if already bookmarked
+    const exists = bookmarks.some(b => b.index === item.index && b.category === category);
+    if (exists) {
+        showNotification('Already bookmarked!', 'info');
+        return;
+    }
+    
+    bookmarks.push(bookmarkItem);
+    localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+    updateBookmarkCount();
+    showNotification('Added to bookmarks!', 'info');
+}
+
+function removeBookmark(index, category) {
+    bookmarks = bookmarks.filter(b => !(b.index === index && b.category === category));
+    localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+    updateBookmarkCount();
+    renderBookmarks();
+    showNotification('Removed from bookmarks', 'info');
+}
+
+function updateBookmarkCount() {
+    bookmarkCount.textContent = bookmarks.length;
+}
+
+function renderBookmarks() {
+    const content = document.getElementById('bookmarksContent');
+    
+    if (bookmarks.length === 0) {
+        content.innerHTML = '<p class="empty-state">No bookmarks yet. Click the 🔖 button on any item to bookmark it!</p>';
+        return;
+    }
+    
+    // Group by category
+    const grouped = {};
+    bookmarks.forEach(item => {
+        if (!grouped[item.category]) {
+            grouped[item.category] = [];
+        }
+        grouped[item.category].push(item);
+    });
+    
+    content.innerHTML = Object.entries(grouped).map(([cat, items]) => `
+        <div class="bookmark-category">
+            <h3>${cat.charAt(0).toUpperCase() + cat.slice(1)}</h3>
+            <div class="bookmark-items">
+                ${items.map(item => `
+                    <div class="bookmark-item">
+                        <span class="bookmark-name" onclick="loadItemFromBookmark('${item.category}', '${item.index}')">${item.name}</span>
+                        <button class="bookmark-remove" onclick="removeBookmark('${item.index}', '${item.category}')" aria-label="Remove ${item.name}">✕</button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadItemFromBookmark(category, index) {
+    if (currentCategory !== category) {
+        currentCategory = category;
+        categoryBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.category === category);
+        });
+        loadCategory(category).then(() => {
+            loadDetails(index);
+        });
+    } else {
+        loadDetails(index);
+    }
+    closeBookmarksModal();
+}
+
+window.removeBookmark = removeBookmark;
+window.loadItemFromBookmark = loadItemFromBookmark;
+
+// Clear all bookmarks
+document.getElementById('clearBookmarks').addEventListener('click', () => {
+    if (confirm('Clear all bookmarks?')) {
+        bookmarks = [];
+        localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+        updateBookmarkCount();
+        renderBookmarks();
+        showNotification('All bookmarks cleared', 'info');
+    }
+});
+
+// Export bookmarks
+document.getElementById('exportBookmarks').addEventListener('click', () => {
+    const dataStr = JSON.stringify(bookmarks, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dnd-bookmarks-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showNotification('Bookmarks exported!', 'info');
+});
+
+// Import bookmarks
+document.getElementById('importBookmarks').addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    // Merge with existing bookmarks
+                    imported.forEach(item => {
+                        if (!bookmarks.some(b => b.index === item.index && b.category === item.category)) {
+                            bookmarks.push(item);
+                        }
+                    });
+                    localStorage.setItem('dnd-bookmarks', JSON.stringify(bookmarks));
+                    updateBookmarkCount();
+                    renderBookmarks();
+                    showNotification(`Imported ${imported.length} bookmarks!`, 'info');
+                } else {
+                    showNotification('Invalid JSON format', 'warning');
+                }
+            } catch (error) {
+                showNotification('Failed to import bookmarks', 'warning');
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+});
+
+// Initialize bookmark count
+updateBookmarkCount();
+
+// ==================== SEARCH HISTORY ====================
+
+function addToSearchHistory(searchTerm, category) {
+    if (!searchTerm || searchTerm.trim() === '') return;
+    
+    const historyItem = {
+        term: searchTerm.trim(),
+        category: category,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Remove duplicates
+    searchHistory = searchHistory.filter(item => 
+        !(item.term.toLowerCase() === historyItem.term.toLowerCase() && item.category === category)
+    );
+    
+    // Add to beginning
+    searchHistory.unshift(historyItem);
+    
+    // Limit to 20 items
+    if (searchHistory.length > 20) {
+        searchHistory = searchHistory.slice(0, 20);
+    }
+    
+    localStorage.setItem('dnd-search-history', JSON.stringify(searchHistory));
+}
+
+function toggleSearchHistory() {
+    searchHistoryPanel.classList.toggle('hidden');
+    if (!searchHistoryPanel.classList.contains('hidden')) {
+        renderSearchHistory();
+    }
+}
+
+function renderSearchHistory() {
+    const list = document.getElementById('searchHistoryList');
+    
+    if (searchHistory.length === 0) {
+        list.innerHTML = '<p class="empty-state">No search history yet</p>';
+        return;
+    }
+    
+    list.innerHTML = searchHistory.map((item, index) => `
+        <div class="search-history-item" onclick="applySearchFromHistory(${index})">
+            <span class="history-term">${item.term}</span>
+            <span class="history-category">${item.category}</span>
+            <span class="history-time">${new Date(item.timestamp).toLocaleDateString()}</span>
+        </div>
+    `).join('');
+}
+
+function applySearchFromHistory(index) {
+    const item = searchHistory[index];
+    if (item) {
+        // Switch category if needed
+        if (currentCategory !== item.category) {
+            currentCategory = item.category;
+            categoryBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === item.category);
+            });
+            loadCategory(item.category).then(() => {
+                searchInput.value = item.term;
+                performSearch();
+            });
+        } else {
+            searchInput.value = item.term;
+            performSearch();
+        }
+        toggleSearchHistory();
+    }
+}
+
+window.applySearchFromHistory = applySearchFromHistory;
+
+searchHistoryBtn.addEventListener('click', toggleSearchHistory);
+
+document.getElementById('clearSearchHistory').addEventListener('click', () => {
+    if (confirm('Clear search history?')) {
+        searchHistory = [];
+        localStorage.setItem('dnd-search-history', JSON.stringify(searchHistory));
+        renderSearchHistory();
+        showNotification('Search history cleared', 'info');
+    }
+});
+
+// Add search history tracking to performSearch
+const originalPerformSearch = performSearch;
+function performSearch() {
+    const searchTerm = searchInput.value.trim();
+    if (searchTerm) {
+        addToSearchHistory(searchTerm, currentCategory);
+    }
+    return originalPerformSearch ? originalPerformSearch() : null;
+}
+
+// ==================== 3D DICE INTEGRATION ====================
+
+async function init3DDice() {
+    if (!window.DiceBox || diceBox) return;
+    
+    try {
+        diceBox = new window.DiceBox('#dice3DContainer', {
+            assetPath: 'https://unpkg.com/@3d-dice/dice-box@1.1.4/dist/',
+            theme: 'default',
+            scale: 5
+        });
+        
+        await diceBox.init();
+        console.log('3D Dice initialized');
+    } catch (error) {
+        console.error('Failed to initialize 3D dice:', error);
+        showNotification('Failed to load 3D dice. Using 2D mode.', 'warning');
+        enable3DDice = false;
+    }
+}
+
+async function roll3DDice(diceType, count) {
+    if (!diceBox) {
+        await init3DDice();
+    }
+    
+    if (!diceBox) return;
+    
+    try {
+        const notation = `${count}${diceType}`;
+        await diceBox.roll(notation);
+        document.getElementById('dice3DContainer').classList.remove('hidden');
+    } catch (error) {
+        console.error('Failed to roll 3D dice:', error);
+    }
+}
+
+if (enable3DDiceCheckbox) {
+    enable3DDiceCheckbox.checked = enable3DDice;
+    
+    enable3DDiceCheckbox.addEventListener('change', async (e) => {
+        enable3DDice = e.target.checked;
+        localStorage.setItem('dnd-3d-dice', enable3DDice);
+        
+        if (enable3DDice) {
+            document.getElementById('dice3DContainer').classList.remove('hidden');
+            await init3DDice();
+        } else {
+            document.getElementById('dice3DContainer').classList.add('hidden');
+        }
+    });
+}
+
+// Initialize 3D dice if enabled
+if (enable3DDice && window.DiceBox) {
+    init3DDice();
 }
