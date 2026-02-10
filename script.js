@@ -2930,7 +2930,8 @@ async function init3DDice() {
     if (!window.DiceBox || diceBox) return;
     
     try {
-        diceBox = new window.DiceBox('#dice3DContainer', {
+        diceBox = new window.DiceBox({
+            id: 'dice3DContainer',
             assetPath: 'https://unpkg.com/@3d-dice/dice-box@1.1.4/dist/',
             theme: 'default',
             scale: 5
