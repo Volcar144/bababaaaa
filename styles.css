@@ -1753,7 +1753,8 @@ select:focus {
     }
     
     .party-divider {
-        transform: rotate(90deg);
+        text-align: center;
+        padding: 5px 0;
     }
     
     .quick-ref-grid {

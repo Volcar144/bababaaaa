@@ -3,7 +3,8 @@ const API_BASE_URL = 'https://www.dnd5eapi.co/api';
 
 // In-memory API cache for performance
 const apiCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for memory cache
+const DB_CACHE_DURATION = 60 * 60 * 1000; // 1 hour for IndexedDB cache
 
 // IndexedDB for better caching
 let db;
@@ -1435,64 +1436,6 @@ document.getElementById('disadvantageCheck').addEventListener('change', (e) => {
     }
 });
 
-function rollDice(diceType) {
-    const count = parseInt(document.getElementById('diceCount').value) || 1;
-    const modifier = parseInt(document.getElementById('diceModifier').value) || 0;
-    const advantage = document.getElementById('advantageCheck').checked;
-    const disadvantage = document.getElementById('disadvantageCheck').checked;
-    
-    const sides = parseInt(diceType.substring(1));
-    const rolls = [];
-    
-    for (let i = 0; i < count; i++) {
-        if (advantage || disadvantage) {
-            const roll1 = Math.floor(Math.random() * sides) + 1;
-            const roll2 = Math.floor(Math.random() * sides) + 1;
-            if (advantage) {
-                rolls.push({ roll: Math.max(roll1, roll2), detail: `[${roll1}, ${roll2}] adv` });
-            } else {
-                rolls.push({ roll: Math.min(roll1, roll2), detail: `[${roll1}, ${roll2}] dis` });
-            }
-        } else {
-            rolls.push({ roll: Math.floor(Math.random() * sides) + 1, detail: '' });
-        }
-    }
-    
-    const sum = rolls.reduce((acc, r) => acc + r.roll, 0);
-    const total = sum + modifier;
-    
-    // Display result
-    const resultsDiv = document.getElementById('diceResults');
-    const rollDetails = rolls.map(r => r.detail ? `${r.roll} ${r.detail}` : r.roll).join(' + ');
-    const modifierStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
-    
-    resultsDiv.innerHTML = `
-        <div class="dice-result-main">
-            <div class="dice-result-total">${total}</div>
-            <div class="dice-result-detail">
-                ${count}${diceType}: [${rollDetails}] ${modifier !== 0 ? modifierStr : ''}
-            </div>
-        </div>
-    `;
-    
-    // Add to history
-    const historyEntry = {
-        dice: `${count}${diceType}`,
-        modifier: modifier,
-        total: total,
-        rolls: rolls.map(r => r.roll),
-        timestamp: new Date().toLocaleTimeString()
-    };
-    
-    diceHistory.unshift(historyEntry);
-    if (diceHistory.length > 10) {
-        diceHistory = diceHistory.slice(0, 10);
-    }
-    
-    localStorage.setItem('dnd-dice-history', JSON.stringify(diceHistory));
-    renderDiceHistory();
-}
-
 function renderDiceHistory() {
     const historyDiv = document.getElementById('diceHistory');
     
@@ -2088,16 +2031,43 @@ function updateMembersList() {
         return;
     }
     
-    list.innerHTML = `
-        ${isHost ? '<div class="party-member"><span class="member-badge">👑</span> You (Host)</div>' : ''}
-        ${connections.map((conn, i) => `
-            <div class="party-member">
-                <span class="member-badge">🎲</span> 
-                Member ${i + 1}
-                ${isHost ? `<button onclick="kickMember(${i})" class="kick-btn">✕</button>` : ''}
-            </div>
-        `).join('')}
-    `;
+    // Build member list safely
+    const memberItems = [];
+    
+    if (isHost) {
+        const hostItem = document.createElement('div');
+        hostItem.className = 'party-member';
+        hostItem.innerHTML = '<span class="member-badge">👑</span> You (Host)';
+        memberItems.push(hostItem);
+    }
+    
+    connections.forEach((conn, i) => {
+        const memberItem = document.createElement('div');
+        memberItem.className = 'party-member';
+        
+        const badge = document.createElement('span');
+        badge.className = 'member-badge';
+        badge.textContent = '🎲';
+        
+        const nameText = document.createTextNode(` Member ${i + 1}`);
+        
+        memberItem.appendChild(badge);
+        memberItem.appendChild(nameText);
+        
+        if (isHost) {
+            const kickBtn = document.createElement('button');
+            kickBtn.className = 'kick-btn';
+            kickBtn.textContent = '✕';
+            kickBtn.setAttribute('aria-label', `Kick Member ${i + 1}`);
+            kickBtn.addEventListener('click', () => kickMember(i));
+            memberItem.appendChild(kickBtn);
+        }
+        
+        memberItems.push(memberItem);
+    });
+    
+    list.innerHTML = '';
+    memberItems.forEach(item => list.appendChild(item));
 }
 
 function kickMember(index) {
@@ -2119,12 +2089,11 @@ document.getElementById('copyRoomCode').addEventListener('click', () => {
     });
 });
 
-// Broadcast initiative changes
-const originalAddInitiative = document.getElementById('addInitiative').onclick;
+// Broadcast initiative changes when added
 document.getElementById('addInitiative').addEventListener('click', () => {
     // Wait a bit for the list to update, then broadcast
     setTimeout(() => {
-        if (document.getElementById('shareInitiative').checked) {
+        if (document.getElementById('shareInitiative')?.checked) {
             broadcastToParty({
                 type: 'initiative',
                 list: initiativeList,
@@ -2134,11 +2103,10 @@ document.getElementById('addInitiative').addEventListener('click', () => {
     }, 100);
 });
 
-// Broadcast turn changes
-const originalNextTurn = document.getElementById('nextTurn').onclick;
+// Broadcast turn changes when advancing
 document.getElementById('nextTurn').addEventListener('click', () => {
     setTimeout(() => {
-        if (document.getElementById('shareInitiative').checked) {
+        if (document.getElementById('shareInitiative')?.checked) {
             broadcastToParty({
                 type: 'initiative',
                 list: initiativeList,
@@ -2385,7 +2353,7 @@ const sounds = {
 };
 
 function playSound(type) {
-    if (!soundEnabled && !document.getElementById('soundEffects')?.checked) return;
+    if (!soundEnabled) return;
     
     if (sounds[type]) {
         sounds[type]();
@@ -2450,7 +2418,7 @@ async function loadFromIndexedDB(endpoint) {
         return new Promise((resolve, reject) => {
             request.onsuccess = () => {
                 const result = request.result;
-                if (result && (Date.now() - result.timestamp < CACHE_DURATION)) {
+                if (result && (Date.now() - result.timestamp < DB_CACHE_DURATION)) {
                     resolve(result.data);
                 } else {
                     resolve(null);
@@ -2464,8 +2432,7 @@ async function loadFromIndexedDB(endpoint) {
     }
 }
 
-// Enhanced dice roll with party broadcasting
-const originalRollDice = rollDice;
+// Enhanced dice roll with party broadcasting and sound effects
 function rollDice(diceType) {
     const count = parseInt(document.getElementById('diceCount').value) || 1;
     const modifier = parseInt(document.getElementById('diceModifier').value) || 0;
