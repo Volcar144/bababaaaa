@@ -40,6 +40,13 @@ let searchHistory = [];
 let diceBox = null;
 let enable3DDice = false;
 
+// Utility function to escape HTML and prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Load favorites safely
 try {
     favorites = JSON.parse(localStorage.getItem('dnd-favorites')) || [];
@@ -470,18 +477,18 @@ function createResultCard(item) {
     card.innerHTML = `
         <div class="card-actions">
             <button class="card-action-btn favorite-btn ${isFavorited ? 'favorited' : ''}" 
-                    data-index="${item.index}" 
+                    data-index="${escapeHtml(item.index)}" 
                     title="${isFavorited ? 'Remove from favorites' : 'Add to favorites'}">
                 ${isFavorited ? '⭐' : '☆'}
             </button>
             <button class="card-action-btn compare-btn" 
-                    data-index="${item.index}" 
+                    data-index="${escapeHtml(item.index)}" 
                     title="${isSelected ? 'Remove from compare' : 'Add to compare'}">
                 ${isSelected ? '✓' : '🔄'}
             </button>
         </div>
-        <h3>${icon} ${item.name}</h3>
-        <span class="badge">${currentCategory}</span>
+        <h3>${icon} ${escapeHtml(item.name)}</h3>
+        <span class="badge">${escapeHtml(currentCategory)}</span>
         <p class="description">Click to view details</p>
     `;
 
@@ -549,14 +556,8 @@ function displayDetails(data) {
     const shareUrl = `${window.location.origin}${window.location.pathname}?category=${currentCategory}&item=${data.index}`;
     
     let content = `
-        <h2>${getCategoryIcon(currentCategory)} ${data.name}</h2>
-        <div style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
-            <button onclick="copyShareLink('${shareUrl}')" style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold;">
-                🔗 Copy Share Link
-            </button>
-            <button onclick="togglePin('${data.index}', '${data.name.replace(/'/g, "\\'")}', '${currentCategory}')" style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold;">
-                ${isPinned(data.index) ? '📍 Unpin' : '📌 Pin'}
-            </button>
+        <h2>${getCategoryIcon(currentCategory)} ${escapeHtml(data.name)}</h2>
+        <div id="detailActions" style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
         </div>
     `;
 
@@ -585,6 +586,30 @@ function displayDetails(data) {
     }
 
     modalBody.innerHTML = content;
+    
+    // Add action buttons with proper event listeners
+    const actionsDiv = document.getElementById('detailActions');
+    
+    // Share link button
+    const shareLinkBtn = document.createElement('button');
+    shareLinkBtn.textContent = '🔗 Copy Share Link';
+    shareLinkBtn.style.cssText = "padding: 8px 16px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold;";
+    shareLinkBtn.setAttribute('aria-label', 'Copy share link');
+    shareLinkBtn.addEventListener('click', () => copyShareLink(shareUrl));
+    actionsDiv.appendChild(shareLinkBtn);
+    
+    // Pin button
+    const pinBtn = document.createElement('button');
+    const pinned = isPinned(data.index);
+    pinBtn.textContent = pinned ? '📍 Unpin' : '📌 Pin';
+    pinBtn.style.cssText = "padding: 8px 16px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold;";
+    pinBtn.setAttribute('aria-label', pinned ? 'Unpin item' : 'Pin item');
+    pinBtn.addEventListener('click', () => {
+        togglePin(data.index, data.name, currentCategory);
+        // Update button text after toggle
+        pinBtn.textContent = isPinned(data.index) ? '📍 Unpin' : '📌 Pin';
+    });
+    actionsDiv.appendChild(pinBtn);
 }
 
 function displaySpellDetails(spell) {
@@ -981,8 +1006,8 @@ function showFavorites() {
             item.className = 'favorite-item';
             item.innerHTML = `
                 <div class="favorite-item-info">
-                    <h4>${getCategoryIcon(fav.category)} ${fav.name}</h4>
-                    <span class="badge">${fav.category}</span>
+                    <h4>${getCategoryIcon(fav.category)} ${escapeHtml(fav.name)}</h4>
+                    <span class="badge">${escapeHtml(fav.category)}</span>
                 </div>
                 <div class="favorite-item-actions">
                     <button class="fav-action-btn view">View</button>
@@ -1395,24 +1420,30 @@ function updateQuickAccess() {
     
     // Update pinned items
     if (pinnedItems.length > 0) {
-        pinnedItemsContainer.innerHTML = pinnedItems.map(item => `
-            <button onclick="loadItemFromQuickAccess('${item.category}', '${item.index}')" 
-                    style="padding: 8px 12px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">
-                📌 ${getCategoryIcon(item.category)} ${item.name}
-            </button>
-        `).join('');
+        pinnedItemsContainer.innerHTML = '';
+        pinnedItems.forEach(item => {
+            const btn = document.createElement('button');
+            btn.style.cssText = "padding: 8px 12px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem;";
+            btn.textContent = `📌 ${getCategoryIcon(item.category)} ${item.name}`;
+            btn.setAttribute('aria-label', `Load pinned item: ${item.name}`);
+            btn.addEventListener('click', () => loadItemFromQuickAccess(item.category, item.index));
+            pinnedItemsContainer.appendChild(btn);
+        });
     } else {
         pinnedItemsContainer.innerHTML = '<p style="color: #666; font-style: italic; margin: 0;">No pinned items yet. Pin items from their detail view!</p>';
     }
     
     // Update recent items
     if (recentItems.length > 0) {
-        recentItemsContainer.innerHTML = recentItems.slice(0, 10).map(item => `
-            <button onclick="loadItemFromQuickAccess('${item.category}', '${item.index}')" 
-                    style="padding: 6px 10px; background: var(--dark-parchment); color: var(--ink); border: 2px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
-                ${getCategoryIcon(item.category)} ${item.name}
-            </button>
-        `).join('');
+        recentItemsContainer.innerHTML = '';
+        recentItems.slice(0, 10).forEach(item => {
+            const btn = document.createElement('button');
+            btn.style.cssText = "padding: 6px 10px; background: var(--dark-parchment); color: var(--ink); border: 2px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.8rem;";
+            btn.textContent = `${getCategoryIcon(item.category)} ${item.name}`;
+            btn.setAttribute('aria-label', `Load recent item: ${item.name}`);
+            btn.addEventListener('click', () => loadItemFromQuickAccess(item.category, item.index));
+            recentItemsContainer.appendChild(btn);
+        });
     } else {
         recentItemsContainer.innerHTML = '<p style="color: #666; font-style: italic; margin: 0;">No recent items yet.</p>';
     }
@@ -2618,19 +2649,43 @@ function renderBookmarks() {
         grouped[item.category].push(item);
     });
     
-    content.innerHTML = Object.entries(grouped).map(([cat, items]) => `
-        <div class="bookmark-category">
-            <h3>${cat.charAt(0).toUpperCase() + cat.slice(1)}</h3>
-            <div class="bookmark-items">
-                ${items.map(item => `
-                    <div class="bookmark-item">
-                        <span class="bookmark-name" onclick="loadItemFromBookmark('${item.category}', '${item.index}')">${item.name}</span>
-                        <button class="bookmark-remove" onclick="removeBookmark('${item.index}', '${item.category}')" aria-label="Remove ${item.name}">✕</button>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `).join('');
+    content.innerHTML = '';
+    Object.entries(grouped).forEach(([cat, items]) => {
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = 'bookmark-category';
+        
+        const heading = document.createElement('h3');
+        heading.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+        categoryDiv.appendChild(heading);
+        
+        const itemsDiv = document.createElement('div');
+        itemsDiv.className = 'bookmark-items';
+        
+        items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'bookmark-item';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'bookmark-name';
+            nameSpan.textContent = item.name;
+            nameSpan.setAttribute('aria-label', `Load bookmark: ${item.name}`);
+            nameSpan.style.cursor = 'pointer';
+            nameSpan.addEventListener('click', () => loadItemFromBookmark(item.category, item.index));
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'bookmark-remove';
+            removeBtn.textContent = '✕';
+            removeBtn.setAttribute('aria-label', `Remove ${item.name}`);
+            removeBtn.addEventListener('click', () => removeBookmark(item.index, item.category));
+            
+            itemDiv.appendChild(nameSpan);
+            itemDiv.appendChild(removeBtn);
+            itemsDiv.appendChild(itemDiv);
+        });
+        
+        categoryDiv.appendChild(itemsDiv);
+        content.appendChild(categoryDiv);
+    });
 }
 
 function loadItemFromBookmark(category, index) {
@@ -2754,13 +2809,19 @@ function renderSearchHistory() {
         return;
     }
     
-    list.innerHTML = searchHistory.map((item, index) => `
-        <div class="search-history-item" onclick="applySearchFromHistory(${index})">
-            <span class="history-term">${item.term}</span>
-            <span class="history-category">${item.category}</span>
+    list.innerHTML = '';
+    searchHistory.forEach((item, index) => {
+        const historyItem = document.createElement('div');
+        historyItem.className = 'search-history-item';
+        historyItem.setAttribute('aria-label', `Search for ${item.term} in ${item.category}`);
+        historyItem.innerHTML = `
+            <span class="history-term">${escapeHtml(item.term)}</span>
+            <span class="history-category">${escapeHtml(item.category)}</span>
             <span class="history-time">${new Date(item.timestamp).toLocaleDateString()}</span>
-        </div>
-    `).join('');
+        `;
+        historyItem.addEventListener('click', () => applySearchFromHistory(index));
+        list.appendChild(historyItem);
+    });
 }
 
 function applySearchFromHistory(index) {
