@@ -147,8 +147,53 @@ Works in all modern browsers:
 
 ## 🔮 Future Enhancements
 
+<!-- SUGGESTED FEATURES TO ADD NEXT:
+     
+     🎯 High Priority:
+     - Export favorites to PDF for offline reference
+     - Share links to specific items (deep linking with URL parameters)
+     - Spell slots tracker for character management
+     - Initiative tracker for combat encounters
+     - Notes system for adding custom annotations to items
+     
+     🎲 Gameplay Features:
+     - Integrated dice roller with advantage/disadvantage
+     - Character sheet builder with auto-calculations
+     - Encounter builder with CR balancing
+     - Condition tracker for status effects
+     - Spell book manager for prepared spells
+     
+     🔧 Technical Enhancements:
+     - Search by multiple criteria simultaneously
+     - Advanced sorting options (alphabetical, level, CR)
+     - Export/import favorites as JSON
+     - Keyboard shortcuts for power users
+     - Voice search integration
+     
+     📱 UX Improvements:
+     - Recent items history
+     - Pin frequently used items
+     - Collections/folders for organizing favorites
+     - Tags system for custom categorization
+     - Print-friendly view for items
+     
+     🌐 Integration Ideas:
+     - D&D Beyond integration
+     - Roll20 integration
+     - Fantasy Grounds support
+     - Discord bot companion
+     - API for third-party integrations
+     
+     💡 Community Features:
+     - User ratings and reviews
+     - Custom homebrew content repository
+     - Share custom item collections
+     - Community-contributed notes
+     
+     Feel free to contribute or suggest new features!
+-->
+
 Potential additions:
-- Offline mode with cached data
 - Export favorites to PDF
 - Share links to specific items
 - Dice roller integration
