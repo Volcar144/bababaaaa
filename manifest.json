@@ -1,12 +1,15 @@
 {
-  "name": "D&D 5e Lookup Tool",
-  "short_name": "D&D Lookup",
-  "description": "Browse and search D&D 5th Edition content offline",
-  "start_url": "./",
+  "name": "D&D 5e Lookup Tool - Spells, Monsters & Party Mode",
+  "short_name": "D&D 5e Lookup",
+  "description": "Comprehensive D&D 5th Edition reference tool with spells, monsters, classes, dice roller, spell slots tracker, initiative tracker, and real-time party mode. Works offline.",
+  "start_url": "./?source=pwa",
   "display": "standalone",
   "background_color": "#f4e8d8",
   "theme_color": "#8b4513",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "scope": "./",
+  "lang": "en-US",
+  "dir": "ltr",
   "icons": [
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🐉</text></svg>",
@@ -21,6 +24,50 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["entertainment", "games", "reference"],
-  "screenshots": []
+  "categories": ["entertainment", "games", "reference", "utilities"],
+  "screenshots": [
+    {
+      "src": "https://github.com/user-attachments/assets/debd12ee-b36b-495e-b377-edcdd8b6b6b5",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Dice Roller Tool"
+    },
+    {
+      "src": "https://github.com/user-attachments/assets/19e8ab5f-8cda-4363-93e9-d77d8dc22bae",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Spell Slots Tracker"
+    },
+    {
+      "src": "https://github.com/user-attachments/assets/09ba3e3e-f029-4d86-99d9-7cde9254b8d7",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Initiative Tracker"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Dice Roller",
+      "short_name": "Dice",
+      "description": "Open the dice roller tool",
+      "url": "./?tool=dice",
+      "icons": []
+    },
+    {
+      "name": "Initiative Tracker",
+      "short_name": "Initiative",
+      "description": "Open the initiative tracker",
+      "url": "./?tool=initiative",
+      "icons": []
+    },
+    {
+      "name": "Spell Lookup",
+      "short_name": "Spells",
+      "description": "Browse spells",
+      "url": "./?category=spells",
+      "icons": []
+    }
+  ]
 }

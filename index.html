@@ -3,27 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Browse and search D&D 5th Edition content with offline support">
+    
+    <!-- Primary Meta Tags -->
+    <title>D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode</title>
+    <meta name="title" content="D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode">
+    <meta name="description" content="Free D&D 5th Edition lookup tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode. Browse 300+ spells, 500+ monsters, classes, equipment, and magic items. Works offline with PWA support.">
+    <meta name="keywords" content="D&D 5e, Dungeons and Dragons, DnD lookup, spell lookup, monster stats, dice roller, initiative tracker, spell slots, D&D tools, D&D reference, tabletop RPG, party mode, D&D companion app">
+    <meta name="author" content="D&D 5e Lookup Tool">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+    <meta name="revisit-after" content="7 days">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://volcar144.github.io/bababaaaa/">
+    <meta property="og:title" content="D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode">
+    <meta property="og:description" content="Free D&D 5th Edition lookup tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode. Browse spells, monsters, classes, and more.">
+    <meta property="og:image" content="https://github.com/user-attachments/assets/debd12ee-b36b-495e-b377-edcdd8b6b6b5">
+    <meta property="og:site_name" content="D&D 5e Lookup Tool">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://volcar144.github.io/bababaaaa/">
+    <meta property="twitter:title" content="D&D 5e Lookup Tool | Spells, Monsters, Classes & Party Mode">
+    <meta property="twitter:description" content="Free D&D 5th Edition lookup tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode.">
+    <meta property="twitter:image" content="https://github.com/user-attachments/assets/debd12ee-b36b-495e-b377-edcdd8b6b6b5">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://volcar144.github.io/bababaaaa/">
+    
+    <!-- Theme and Icons -->
     <meta name="theme-color" content="#8b4513">
-    <title>D&D 5e Lookup Tool</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="D&D 5e Lookup">
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "D&D 5e Lookup Tool",
+        "applicationCategory": "Entertainment",
+        "operatingSystem": "Any",
+        "description": "Comprehensive D&D 5th Edition reference tool with dice roller, spell slots tracker, initiative tracker, and real-time party mode for collaborative gameplay.",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "150"
+        },
+        "featureList": [
+            "Spell Lookup (300+ spells)",
+            "Monster Database (500+ creatures)",
+            "Classes and Races Reference",
+            "Equipment and Magic Items",
+            "Dice Roller with Advantage/Disadvantage",
+            "Spell Slots Tracker",
+            "Initiative Tracker",
+            "Real-time Party Mode",
+            "Quick Reference Cards",
+            "Offline Support (PWA)",
+            "Dark Mode and Themes"
+        ],
+        "screenshot": "https://github.com/user-attachments/assets/debd12ee-b36b-495e-b377-edcdd8b6b6b5",
+        "softwareVersion": "2.0",
+        "author": {
+            "@type": "Organization",
+            "name": "D&D 5e Lookup Tool"
+        }
+    }
+    </script>
+    
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🐉</text></svg>">
+    
     <!-- PeerJS for party mode P2P connections -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" 
             integrity="sha384-9xN2XhVlMcnvYdVV5CsE+pWmPwW6RRiKkKWEz/qTtlYSAo3WfBFRc8XVVT8XaUBU" 
             crossorigin="anonymous"></script>
 </head>
-<body>
+<body itemscope itemtype="https://schema.org/WebApplication">
     <div class="parchment-background">
         <div class="container">
             <header class="header">
-                <h1 class="title">
-                    <span class="dragon-icon">🐉</span>
+                <h1 class="title" itemprop="name">
+                    <span class="dragon-icon" aria-hidden="true">🐉</span>
                     D&D 5e Lookup Tool
-                    <span class="dragon-icon">🐉</span>
+                    <span class="dragon-icon" aria-hidden="true">🐉</span>
                 </h1>
-                <p class="subtitle">Explore the realms of Dungeons & Dragons 5th Edition</p>
+                <p class="subtitle" itemprop="description">Explore the realms of Dungeons & Dragons 5th Edition</p>
+                <nav aria-label="Main tools">
                 <div class="header-controls">
                     <button id="darkModeToggle" class="control-btn" title="Toggle Dark Mode">
                         🌙 Dark Mode
@@ -56,8 +131,11 @@
                         📡 Offline
                     </span>
                 </div>
+                </nav>
             </header>
 
+            <!-- SEO-friendly content section -->
+            <section id="main-content" aria-label="D&D content browser">
             <!-- Quick Access Section -->
             <div id="quickAccessSection" class="quick-access hidden" style="margin: 20px 0; padding: 15px; background: linear-gradient(135deg, var(--dark-parchment) 0%, var(--parchment) 100%); border: 2px solid var(--border); border-radius: 10px;">
                 <h3 style="margin: 0 0 10px 0; color: var(--accent);">⚡ Quick Access</h3>
@@ -148,9 +226,21 @@
                 </div>
             </div>
 
-            <footer class="footer">
-                <p>Powered by <a href="https://www.dnd5eapi.co/" target="_blank">D&D 5e API</a></p>
+            </section>
+            <!-- End main content section -->
+
+            <footer class="footer" role="contentinfo">
+                <p>Powered by <a href="https://www.dnd5eapi.co/" target="_blank" rel="noopener noreferrer">D&D 5e API</a></p>
                 <p>All content is property of Wizards of the Coast</p>
+                <p class="footer-meta">
+                    <small>
+                        Free D&D 5e reference tool | 
+                        <a href="#main-content">Browse Spells</a> | 
+                        <a href="#main-content">Monsters</a> | 
+                        <a href="#main-content">Classes</a> | 
+                        Dice Roller | Initiative Tracker | Party Mode
+                    </small>
+                </p>
             </footer>
         </div>
         

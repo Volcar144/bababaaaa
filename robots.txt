@@ -1,0 +1,11 @@
+# robots.txt for D&D 5e Lookup Tool
+User-agent: *
+Allow: /
+Disallow: /sw.js
+Disallow: /*.json$
+
+# Sitemap
+Sitemap: https://volcar144.github.io/bababaaaa/sitemap.xml
+
+# Crawl-delay for polite bots
+Crawl-delay: 1
