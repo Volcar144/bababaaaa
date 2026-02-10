@@ -39,6 +39,16 @@
                 </div>
             </header>
 
+            <!-- Quick Access Section -->
+            <div id="quickAccessSection" class="quick-access hidden" style="margin: 20px 0; padding: 15px; background: linear-gradient(135deg, var(--dark-parchment) 0%, var(--parchment) 100%); border: 2px solid var(--border); border-radius: 10px;">
+                <h3 style="margin: 0 0 10px 0; color: var(--accent);">⚡ Quick Access</h3>
+                <div id="pinnedItems" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                <details style="margin-top: 10px;">
+                    <summary style="cursor: pointer; color: var(--accent); font-weight: bold;">📜 Recent Items</summary>
+                    <div id="recentItems" style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                </details>
+            </div>
+
             <div class="search-section">
                 <div class="category-selector">
                     <button class="category-btn active" data-category="spells">
@@ -104,6 +114,17 @@
                 <div class="modal-content">
                     <span class="close-btn" id="closeFavorites">&times;</span>
                     <h2>⭐ Your Favorites</h2>
+                    <div style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="exportFavoritesPDF()" class="control-btn" style="font-size: 0.9rem;">
+                            📄 Export to PDF
+                        </button>
+                        <button onclick="exportFavoritesJSON()" class="control-btn" style="font-size: 0.9rem;">
+                            💾 Export JSON
+                        </button>
+                        <button onclick="importFavoritesJSON()" class="control-btn" style="font-size: 0.9rem;">
+                            📥 Import JSON
+                        </button>
+                    </div>
                     <div id="favoritesBody" class="favorites-body"></div>
                 </div>
             </div>

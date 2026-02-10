@@ -9,6 +9,8 @@ let compareList = [];
 let currentFilters = {};
 let isOffline = !navigator.onLine;
 let deferredPrompt = null;
+let recentItems = [];
+let pinnedItems = [];
 
 // Load favorites safely
 try {
@@ -16,6 +18,22 @@ try {
 } catch (error) {
     console.error('Failed to load favorites:', error);
     favorites = [];
+}
+
+// Load recent items
+try {
+    recentItems = JSON.parse(localStorage.getItem('dnd-recent')) || [];
+} catch (error) {
+    console.error('Failed to load recent items:', error);
+    recentItems = [];
+}
+
+// Load pinned items
+try {
+    pinnedItems = JSON.parse(localStorage.getItem('dnd-pinned')) || [];
+} catch (error) {
+    console.error('Failed to load pinned items:', error);
+    pinnedItems = [];
 }
 
 // Register Service Worker for offline support
@@ -59,10 +77,29 @@ const installBtn = document.getElementById('installBtn');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    loadCategory(currentCategory);
+    // Check for deep link parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const category = urlParams.get('category');
+    const itemId = urlParams.get('item');
+    
+    if (category && itemId) {
+        // Deep link to specific item
+        currentCategory = category;
+        loadCategory(category).then(() => {
+            loadDetails(itemId);
+        });
+    } else if (category) {
+        // Deep link to category
+        currentCategory = category;
+        loadCategory(category);
+    } else {
+        loadCategory(currentCategory);
+    }
+    
     updateFavoritesCount();
     loadDarkMode();
     updateOfflineStatus();
+    updateQuickAccess();
 });
 
 // Offline/Online detection
@@ -309,6 +346,15 @@ async function loadDetails(index) {
 
     try {
         const data = await fetchFromAPI(`/${currentCategory}/${index}`);
+        
+        // Add to recent items
+        addToRecent({
+            index: index,
+            name: data.name,
+            category: currentCategory,
+            timestamp: Date.now()
+        });
+        
         displayDetails(data);
     } catch (error) {
         modalBody.innerHTML = '<p style="text-align: center; padding: 40px; color: #c62828;">Failed to load details. Please try again.</p>';
@@ -318,7 +364,20 @@ async function loadDetails(index) {
 }
 
 function displayDetails(data) {
-    let content = `<h2>${getCategoryIcon(currentCategory)} ${data.name}</h2>`;
+    // Generate share link
+    const shareUrl = `${window.location.origin}${window.location.pathname}?category=${currentCategory}&item=${data.index}`;
+    
+    let content = `
+        <h2>${getCategoryIcon(currentCategory)} ${data.name}</h2>
+        <div style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button onclick="copyShareLink('${shareUrl}')" style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold;">
+                🔗 Copy Share Link
+            </button>
+            <button onclick="togglePin('${data.index}', '${data.name.replace(/'/g, "\\'")}', '${currentCategory}')" style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold;">
+                ${isPinned(data.index) ? '📍 Unpin' : '📌 Pin'}
+            </button>
+        </div>
+    `;
 
     // Display based on category
     switch(currentCategory) {
@@ -968,3 +1027,228 @@ function updateOfflineStatus() {
         offlineIndicator.classList.add('hidden');
     }
 }
+
+// Recent Items Management
+function addToRecent(item) {
+    // Remove if already exists
+    recentItems = recentItems.filter(r => !(r.index === item.index && r.category === item.category));
+    
+    // Add to beginning
+    recentItems.unshift(item);
+    
+    // Keep only last 20 items
+    if (recentItems.length > 20) {
+        recentItems = recentItems.slice(0, 20);
+    }
+    
+    localStorage.setItem('dnd-recent', JSON.stringify(recentItems));
+    updateQuickAccess();
+}
+
+// Pinned Items Management
+function togglePin(index, name, category) {
+    const existingIndex = pinnedItems.findIndex(p => p.index === index && p.category === category);
+    
+    if (existingIndex !== -1) {
+        pinnedItems.splice(existingIndex, 1);
+        showNotification('Item unpinned', 'info');
+    } else {
+        pinnedItems.push({ index, name, category, pinnedAt: Date.now() });
+        showNotification('Item pinned for quick access', 'info');
+    }
+    
+    localStorage.setItem('dnd-pinned', JSON.stringify(pinnedItems));
+    updateQuickAccess();
+    
+    // Refresh the details view to update pin button
+    loadDetails(index);
+}
+
+function isPinned(index) {
+    return pinnedItems.some(p => p.index === index && p.category === currentCategory);
+}
+
+// Share Link Management
+function copyShareLink(url) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+            showNotification('Share link copied to clipboard!', 'info');
+        }).catch(() => {
+            // Fallback for older browsers
+            fallbackCopyText(url);
+        });
+    } else {
+        fallbackCopyText(url);
+    }
+}
+
+function fallbackCopyText(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        showNotification('Share link copied!', 'info');
+    } catch (err) {
+        showNotification('Failed to copy link', 'warning');
+    }
+    document.body.removeChild(textarea);
+}
+
+// Export Favorites to PDF (using browser print)
+function exportFavoritesPDF() {
+    if (favorites.length === 0) {
+        showNotification('No favorites to export', 'warning');
+        return;
+    }
+    
+    const printWindow = window.open('', '_blank');
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>D&D 5e Favorites</title>
+            <style>
+                body { font-family: Georgia, serif; padding: 20px; }
+                h1 { color: #8b4513; border-bottom: 3px solid #d4af37; }
+                .item { margin: 20px 0; padding: 15px; border: 2px solid #a0826d; border-radius: 8px; page-break-inside: avoid; }
+                .item h2 { margin: 0 0 10px 0; color: #8b4513; }
+                .badge { display: inline-block; padding: 4px 8px; background: #d4af37; color: white; border-radius: 4px; font-size: 0.9em; }
+                @media print { .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <h1>🐉 My D&D 5e Favorites</h1>
+            <p>Exported on: ${new Date().toLocaleDateString()}</p>
+            <button class="no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <hr>
+    `;
+    
+    favorites.forEach(fav => {
+        html += `
+            <div class="item">
+                <h2>${getCategoryIcon(fav.category)} ${fav.name}</h2>
+                <span class="badge">${fav.category}</span>
+            </div>
+        `;
+    });
+    
+    html += '</body></html>';
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+// Export/Import Favorites as JSON
+function exportFavoritesJSON() {
+    if (favorites.length === 0) {
+        showNotification('No favorites to export', 'warning');
+        return;
+    }
+    
+    const dataStr = JSON.stringify(favorites, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dnd-favorites-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showNotification('Favorites exported as JSON', 'info');
+}
+
+function importFavoritesJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    // Merge with existing favorites
+                    imported.forEach(item => {
+                        if (!favorites.some(f => f.index === item.index && f.category === item.category)) {
+                            favorites.push(item);
+                        }
+                    });
+                    localStorage.setItem('dnd-favorites', JSON.stringify(favorites));
+                    updateFavoritesCount();
+                    showNotification(`Imported ${imported.length} favorites`, 'info');
+                } else {
+                    showNotification('Invalid JSON format', 'warning');
+                }
+            } catch (error) {
+                showNotification('Failed to import favorites', 'warning');
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+// Make functions globally accessible for onclick handlers
+window.copyShareLink = copyShareLink;
+window.togglePin = togglePin;
+window.exportFavoritesPDF = exportFavoritesPDF;
+window.exportFavoritesJSON = exportFavoritesJSON;
+window.importFavoritesJSON = importFavoritesJSON;
+
+// Quick Access UI Updates
+function updateQuickAccess() {
+    const quickAccessSection = document.getElementById('quickAccessSection');
+    const pinnedItemsContainer = document.getElementById('pinnedItems');
+    const recentItemsContainer = document.getElementById('recentItems');
+    
+    // Show section if there are pinned or recent items
+    if (pinnedItems.length > 0 || recentItems.length > 0) {
+        quickAccessSection.classList.remove('hidden');
+    } else {
+        quickAccessSection.classList.add('hidden');
+        return;
+    }
+    
+    // Update pinned items
+    if (pinnedItems.length > 0) {
+        pinnedItemsContainer.innerHTML = pinnedItems.map(item => `
+            <button onclick="loadItemFromQuickAccess('${item.category}', '${item.index}')" 
+                    style="padding: 8px 12px; background: linear-gradient(135deg, var(--accent) 0%, #a0552f 100%); color: var(--parchment); border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">
+                📌 ${getCategoryIcon(item.category)} ${item.name}
+            </button>
+        `).join('');
+    } else {
+        pinnedItemsContainer.innerHTML = '<p style="color: #666; font-style: italic; margin: 0;">No pinned items yet. Pin items from their detail view!</p>';
+    }
+    
+    // Update recent items
+    if (recentItems.length > 0) {
+        recentItemsContainer.innerHTML = recentItems.slice(0, 10).map(item => `
+            <button onclick="loadItemFromQuickAccess('${item.category}', '${item.index}')" 
+                    style="padding: 6px 10px; background: var(--dark-parchment); color: var(--ink); border: 2px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
+                ${getCategoryIcon(item.category)} ${item.name}
+            </button>
+        `).join('');
+    } else {
+        recentItemsContainer.innerHTML = '<p style="color: #666; font-style: italic; margin: 0;">No recent items yet.</p>';
+    }
+}
+
+function loadItemFromQuickAccess(category, index) {
+    if (currentCategory !== category) {
+        currentCategory = category;
+        categoryBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.category === category);
+        });
+        loadCategory(category).then(() => {
+            loadDetails(index);
+        });
+    } else {
+        loadDetails(index);
+    }
+}
+
+window.loadItemFromQuickAccess = loadItemFromQuickAccess;
