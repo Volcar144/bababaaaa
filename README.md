@@ -148,17 +148,22 @@ Works in all modern browsers:
 ## 🔮 Future Enhancements
 
 Potential additions:
-- ~~Offline mode with cached data~~
-- ~~Favorites/bookmarking system~~ ✅ Added!
-- ~~Advanced filtering options~~ ✅ Added!
-- ~~Character sheet integration~~
-- ~~Custom content support~~
-- ~~Dark mode toggle~~ ✅ Added!
-- ~~Compare items feature~~ ✅ Added!
-- ~~Random item selector~~ ✅ Added!
+- Offline mode with cached data
 - Export favorites to PDF
 - Share links to specific items
 - Dice roller integration
+- Character sheet integration
+- Custom content support
+
+## 📝 Recent Updates
+
+**v2.0 - Enhanced Features**
+- ✅ Dark mode toggle
+- ✅ Favorites/bookmarking system
+- ✅ Advanced filtering options
+- ✅ Compare items feature (up to 4 items)
+- ✅ Random item selector
+- ✅ Races category added
 
 ---
 

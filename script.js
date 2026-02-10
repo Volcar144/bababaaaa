@@ -4,9 +4,17 @@ const API_BASE_URL = 'https://www.dnd5eapi.co/api';
 // State management
 let currentCategory = 'spells';
 let allResults = [];
-let favorites = JSON.parse(localStorage.getItem('dnd-favorites')) || [];
+let favorites = [];
 let compareList = [];
 let currentFilters = {};
+
+// Load favorites safely
+try {
+    favorites = JSON.parse(localStorage.getItem('dnd-favorites')) || [];
+} catch (error) {
+    console.error('Failed to load favorites:', error);
+    favorites = [];
+}
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
@@ -56,8 +64,11 @@ searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') performSearch();
 });
 
+// Debounced search for better performance
+let searchTimeout;
 searchInput.addEventListener('input', () => {
-    performSearch();
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(performSearch, 300);
 });
 
 randomBtn.addEventListener('click', getRandomItem);
@@ -705,7 +716,7 @@ function toggleCompare(item) {
         compareList.splice(existingIndex, 1);
     } else {
         if (compareList.length >= 4) {
-            alert('You can compare up to 4 items at once');
+            showNotification('You can compare up to 4 items at once', 'warning');
             return;
         }
         compareList.push({
@@ -771,7 +782,7 @@ async function showCompare() {
 // Random Item
 function getRandomItem() {
     if (allResults.length === 0) {
-        alert('No items available in this category');
+        showNotification('No items available in this category', 'warning');
         return;
     }
     
@@ -833,15 +844,17 @@ async function applyFilters() {
         if (currentCategory === 'spells') {
             const levelFilter = document.getElementById('spellLevelFilter')?.value;
             if (levelFilter !== '') {
-                // Fetch detailed info to filter by level
-                const detailedResults = [];
-                for (const item of allResults) {
-                    const data = await fetchFromAPI(`/${currentCategory}/${item.index}`);
-                    if (data.level !== undefined && data.level.toString() === levelFilter) {
-                        detailedResults.push(item);
-                    }
-                }
-                filtered = detailedResults;
+                // Fetch detailed info to filter by level (using Promise.all for performance)
+                const detailPromises = allResults.map(item => 
+                    fetchFromAPI(`/${currentCategory}/${item.index}`)
+                        .then(data => ({ item, data }))
+                        .catch(err => ({ item, data: null }))
+                );
+                
+                const results = await Promise.all(detailPromises);
+                filtered = results
+                    .filter(({ data }) => data && data.level !== undefined && data.level.toString() === levelFilter)
+                    .map(({ item }) => item);
             }
         }
         
@@ -851,4 +864,31 @@ async function applyFilters() {
     } finally {
         hideLoading();
     }
+}
+
+// Notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'warning' ? '#ff9800' : '#4caf50'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 10000;
+        font-weight: bold;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }

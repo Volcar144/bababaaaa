@@ -22,9 +22,6 @@ body.dark-mode {
     --gold: #ffd700;
     --shadow: rgba(0, 0, 0, 0.5);
     --border: #555;
-}
-
-body.dark-mode {
     background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%);
 }
 
@@ -692,5 +689,28 @@ body {
 
 .pulse {
     animation: pulse 2s ease-in-out infinite;
+}
+
+/* Notification animations */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
 }
 
