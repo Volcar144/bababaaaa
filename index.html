@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🐉</text></svg>">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
     <div class="parchment-background">
@@ -23,6 +24,9 @@
                 <div class="header-controls">
                     <button id="darkModeToggle" class="control-btn" title="Toggle Dark Mode">
                         🌙 Dark Mode
+                    </button>
+                    <button id="themeSelector" class="control-btn" title="Choose Theme">
+                        🎨 Theme
                     </button>
                     <button id="favoritesBtn" class="control-btn" title="View Favorites">
                         ⭐ Favorites (<span id="favCount">0</span>)
@@ -41,6 +45,9 @@
                     </button>
                     <button id="initiativeBtn" class="control-btn" title="Initiative Tracker">
                         ⚔️ Initiative
+                    </button>
+                    <button id="partyModeBtn" class="control-btn" title="Party Mode - Share with friends">
+                        👥 Party
                     </button>
                     <span id="offlineIndicator" class="offline-indicator hidden" title="Offline Mode">
                         📡 Offline
@@ -143,6 +150,11 @@
                 <p>All content is property of Wizards of the Coast</p>
             </footer>
         </div>
+        
+        <!-- Floating Quick Reference Button -->
+        <button id="floatingQuickRef" class="floating-btn" title="Quick Reference" aria-label="Open quick reference">
+            📚
+        </button>
     </div>
 
     <!-- Dice Roller Modal -->
@@ -229,6 +241,100 @@
                     <button id="nextTurn" class="control-btn">Next Turn</button>
                 </div>
                 <div id="initiativeList" class="initiative-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Party Mode Modal -->
+    <div id="partyModeModal" class="modal hidden" role="dialog" aria-labelledby="partyModeTitle" aria-modal="true">
+        <div class="modal-content">
+            <span class="close-btn" id="closePartyMode" aria-label="Close modal">&times;</span>
+            <h2 id="partyModeTitle">👥 Party Mode</h2>
+            <div class="party-mode-body">
+                <div id="partyStatus" class="party-status">
+                    <p>Connect with your party to share initiative tracker, spell slots, and dice rolls in real-time!</p>
+                </div>
+                
+                <div class="party-controls">
+                    <div class="party-section">
+                        <h3>Host a Session</h3>
+                        <button id="hostParty" class="control-btn">Create Party Room</button>
+                        <div id="hostInfo" class="hidden">
+                            <p>Share this code with your party:</p>
+                            <div class="room-code-display">
+                                <code id="roomCode"></code>
+                                <button id="copyRoomCode" class="control-btn" title="Copy to clipboard">📋</button>
+                            </div>
+                            <button id="disconnectHost" class="control-btn warning-btn">Disconnect</button>
+                        </div>
+                    </div>
+                    
+                    <div class="party-divider">OR</div>
+                    
+                    <div class="party-section">
+                        <h3>Join a Session</h3>
+                        <input type="text" id="joinRoomCode" placeholder="Enter room code" aria-label="Room code">
+                        <button id="joinParty" class="control-btn">Join Party</button>
+                    </div>
+                </div>
+                
+                <div id="partyMembers" class="party-members hidden">
+                    <h3>Party Members</h3>
+                    <div id="membersList"></div>
+                </div>
+                
+                <div class="party-settings">
+                    <h3>Share Settings</h3>
+                    <label>
+                        <input type="checkbox" id="shareInitiative" checked> Share Initiative Tracker
+                    </label>
+                    <label>
+                        <input type="checkbox" id="shareSpellSlots" checked> Share Spell Slots
+                    </label>
+                    <label>
+                        <input type="checkbox" id="shareDiceRolls" checked> Broadcast Dice Rolls
+                    </label>
+                    <label>
+                        <input type="checkbox" id="soundEffects"> Enable Sound Effects
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reference Modal -->
+    <div id="quickRefModal" class="modal hidden" role="dialog" aria-labelledby="quickRefTitle" aria-modal="true">
+        <div class="modal-content quick-ref-content">
+            <span class="close-btn" id="closeQuickRef" aria-label="Close modal">&times;</span>
+            <h2 id="quickRefTitle">📚 Quick Reference</h2>
+            <div class="quick-ref-body">
+                <div class="quick-ref-grid">
+                    <div class="ref-card" onclick="showRefDetail('conditions')">
+                        <h3>🩹 Conditions</h3>
+                        <p>Status effects and their rules</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('actions')">
+                        <h3>⚔️ Actions in Combat</h3>
+                        <p>What you can do on your turn</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('cover')">
+                        <h3>🛡️ Cover</h3>
+                        <p>Bonus to AC and saves</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('advantage')">
+                        <h3>🎲 Advantage/Disadvantage</h3>
+                        <p>Roll twice, take higher/lower</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('restTypes')">
+                        <h3>😴 Rests</h3>
+                        <p>Short and long rest benefits</p>
+                    </div>
+                    <div class="ref-card" onclick="showRefDetail('movement')">
+                        <h3>🏃 Movement</h3>
+                        <p>Standard speeds and terrain</p>
+                    </div>
+                </div>
+                <div id="refDetail" class="ref-detail hidden"></div>
             </div>
         </div>
     </div>
